@@ -31,6 +31,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Controller slice tests for {@link ForexController}.
+ */
 @WebMvcTest(ForexController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class ForexControllerTest {
@@ -50,6 +53,18 @@ class ForexControllerTest {
     @MockitoBean
     private JwtUtil jwtUtil;
 
+    /**
+     * Builds an exchange-rate DTO.
+     *
+     * <p><b>Pre-condition:</b> {@code rate} is a valid decimal string.</p>
+     * <p><b>Post-condition:</b> No state is changed.</p>
+     *
+     * @param id rate id
+     * @param base base currency
+     * @param quote quote currency
+     * @param rate rate as text
+     * @return the rate DTO
+     */
     private static ExchangeRateDTO dto(Long id, String base, String quote, String rate) {
         ExchangeRateDTO d = new ExchangeRateDTO();
         d.setId(id);
@@ -61,6 +76,14 @@ class ForexControllerTest {
 
     private static final String USD_PHP = "{\"baseCurrency\":\"USD\",\"quoteCurrency\":\"PHP\",\"rate\":58.25}";
 
+    /**
+     * TC-FXCTL-01: tests {@code ForexController.getSupportedCurrencies}.
+     *
+     * <p><b>Pre-condition:</b> A standard call to the method under test.</p>
+     * <p><b>Post-condition:</b> -&gt; 200 with PHP 'Philippine Peso'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-01 | ForexController.getSupportedCurrencies | -> 200 with PHP 'Philippine Peso'")
     void currencies_php() throws Exception {
@@ -69,6 +92,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.data.PHP").value("Philippine Peso"));
     }
 
+    /**
+     * TC-FXCTL-02: tests {@code ForexController.getSupportedCurrencies}.
+     *
+     * <p><b>Pre-condition:</b> A standard call to the method under test.</p>
+     * <p><b>Post-condition:</b> -&gt; USD present.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-02 | ForexController.getSupportedCurrencies | -> USD present")
     void currencies_usd() throws Exception {
@@ -76,6 +107,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.data.USD").value("US Dollar"));
     }
 
+    /**
+     * TC-FXCTL-03: tests {@code ForexController.getSupportedCurrencies}.
+     *
+     * <p><b>Pre-condition:</b> A standard call to the method under test.</p>
+     * <p><b>Post-condition:</b> -&gt; unsupported JPY absent, message set.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-03 | ForexController.getSupportedCurrencies | -> unsupported JPY absent, message set")
     void currencies_noJpy() throws Exception {
@@ -84,6 +123,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.message").value("Supported currencies"));
     }
 
+    /**
+     * TC-FXCTL-04: tests {@code ForexController.getAllRates}.
+     *
+     * <p><b>Pre-condition:</b> Two rates.</p>
+     * <p><b>Post-condition:</b> 200 with both.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-04 | ForexController.getAllRates | two rates -> 200 with both")
     void rates_list() throws Exception {
@@ -94,6 +141,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.data[1].baseCurrency").value("USD"));
     }
 
+    /**
+     * TC-FXCTL-05: tests {@code ForexController.getAllRates}.
+     *
+     * <p><b>Pre-condition:</b> None.</p>
+     * <p><b>Post-condition:</b> 200 with empty list.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-05 | ForexController.getAllRates | none -> 200 with empty list")
     void rates_empty() throws Exception {
@@ -103,6 +158,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.data.length()").value(0));
     }
 
+    /**
+     * TC-FXCTL-06: tests {@code ForexController.getAllRates}.
+     *
+     * <p><b>Pre-condition:</b> A standard call to the method under test.</p>
+     * <p><b>Post-condition:</b> Message 'Exchange rates retrieved'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-06 | ForexController.getAllRates | message 'Exchange rates retrieved'")
     void rates_message() throws Exception {
@@ -111,6 +174,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.message").value("Exchange rates retrieved"));
     }
 
+    /**
+     * TC-FXCTL-07: tests {@code ForexController.getRateById}.
+     *
+     * <p><b>Pre-condition:</b> Existing id.</p>
+     * <p><b>Post-condition:</b> 200 with rate.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-07 | ForexController.getRateById | existing id -> 200 with rate")
     void rateById_found() throws Exception {
@@ -120,6 +191,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.data.rate").value(58.25));
     }
 
+    /**
+     * TC-FXCTL-08: tests {@code ForexController.getRateById}.
+     *
+     * <p><b>Pre-condition:</b> Unknown id.</p>
+     * <p><b>Post-condition:</b> 404.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-08 | ForexController.getRateById | unknown id -> 404")
     void rateById_missing() throws Exception {
@@ -129,6 +208,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.message").value("Exchange rate not found"));
     }
 
+    /**
+     * TC-FXCTL-09: tests {@code ForexController.getRateById}.
+     *
+     * <p><b>Pre-condition:</b> Non-numeric id.</p>
+     * <p><b>Post-condition:</b> 400.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-09 | ForexController.getRateById | non-numeric id -> 400")
     void rateById_badId() throws Exception {
@@ -136,6 +223,14 @@ class ForexControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * TC-FXCTL-10: tests {@code ForexController.createRate}.
+     *
+     * <p><b>Pre-condition:</b> Valid body.</p>
+     * <p><b>Post-condition:</b> 201 'Exchange rate created'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-10 | ForexController.createRate | valid body -> 201 'Exchange rate created'")
     void createRate_ok() throws Exception {
@@ -145,6 +240,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.data.id").value(5));
     }
 
+    /**
+     * TC-FXCTL-11: tests {@code ForexController.createRate}.
+     *
+     * <p><b>Pre-condition:</b> Negative rate.</p>
+     * <p><b>Post-condition:</b> 400 'Rate must be greater than zero'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-11 | ForexController.createRate | negative rate -> 400 'Rate must be greater than zero'")
     void createRate_negative() throws Exception {
@@ -154,6 +257,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.message").value("Rate must be greater than zero"));
     }
 
+    /**
+     * TC-FXCTL-12: tests {@code ForexController.createRate}.
+     *
+     * <p><b>Pre-condition:</b> Duplicate pair.</p>
+     * <p><b>Post-condition:</b> 400 from InvalidTransactionException.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-12 | ForexController.createRate | duplicate pair -> 400 from InvalidTransactionException")
     void createRate_duplicate() throws Exception {
@@ -163,6 +274,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.errorType").value("Invalid Transaction"));
     }
 
+    /**
+     * TC-FXCTL-13: tests {@code ForexController.updateRate}.
+     *
+     * <p><b>Pre-condition:</b> Valid body.</p>
+     * <p><b>Post-condition:</b> 200 'Exchange rate updated'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-13 | ForexController.updateRate | valid body -> 200 'Exchange rate updated'")
     void updateRate_ok() throws Exception {
@@ -172,6 +291,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.message").value("Exchange rate updated"));
     }
 
+    /**
+     * TC-FXCTL-14: tests {@code ForexController.updateRate}.
+     *
+     * <p><b>Pre-condition:</b> Unknown id.</p>
+     * <p><b>Post-condition:</b> 404.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-14 | ForexController.updateRate | unknown id -> 404")
     void updateRate_missing() throws Exception {
@@ -180,6 +307,14 @@ class ForexControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    /**
+     * TC-FXCTL-15: tests {@code ForexController.updateRate}.
+     *
+     * <p><b>Pre-condition:</b> Non-admin.</p>
+     * <p><b>Post-condition:</b> 403.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-15 | ForexController.updateRate | non-admin -> 403")
     void updateRate_forbidden() throws Exception {
@@ -188,6 +323,14 @@ class ForexControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    /**
+     * TC-FXCTL-16: tests {@code ForexController.deleteRate}.
+     *
+     * <p><b>Pre-condition:</b> Existing id.</p>
+     * <p><b>Post-condition:</b> 200 'Exchange rate deleted'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-16 | ForexController.deleteRate | existing id -> 200 'Exchange rate deleted'")
     void deleteRate_ok() throws Exception {
@@ -197,6 +340,14 @@ class ForexControllerTest {
         verify(exchangeRateService).deleteRate(1L);
     }
 
+    /**
+     * TC-FXCTL-17: tests {@code ForexController.deleteRate}.
+     *
+     * <p><b>Pre-condition:</b> Unknown id.</p>
+     * <p><b>Post-condition:</b> 404.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-17 | ForexController.deleteRate | unknown id -> 404")
     void deleteRate_missing() throws Exception {
@@ -205,6 +356,14 @@ class ForexControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    /**
+     * TC-FXCTL-18: tests {@code ForexController.deleteRate}.
+     *
+     * <p><b>Pre-condition:</b> Non-admin.</p>
+     * <p><b>Post-condition:</b> 403.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-18 | ForexController.deleteRate | non-admin -> 403")
     void deleteRate_forbidden() throws Exception {
@@ -213,6 +372,14 @@ class ForexControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    /**
+     * TC-FXCTL-19: tests {@code ForexController.getQuote}.
+     *
+     * <p><b>Pre-condition:</b> 1000 PHP.</p>
+     * <p><b>Post-condition:</b> USD -&gt; 200 with converted amount.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-19 | ForexController.getQuote | 1000 PHP -> USD -> 200 with converted amount")
     void quote_ok() throws Exception {
@@ -224,6 +391,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.data.convertedAmount").value(17.24));
     }
 
+    /**
+     * TC-FXCTL-20: tests {@code ForexController.getQuote}.
+     *
+     * <p><b>Pre-condition:</b> Missing 'to' parameter.</p>
+     * <p><b>Post-condition:</b> 400.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-20 | ForexController.getQuote | missing 'to' parameter -> 400")
     void quote_missingParam() throws Exception {
@@ -231,6 +406,14 @@ class ForexControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * TC-FXCTL-21: tests {@code ForexController.getQuote}.
+     *
+     * <p><b>Pre-condition:</b> No rate for pair.</p>
+     * <p><b>Post-condition:</b> 404.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-FXCTL-21 | ForexController.getQuote | no rate for pair -> 404")
     void quote_noRate() throws Exception {
@@ -240,6 +423,14 @@ class ForexControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    /**
+     * TC-FXCTL-22: tests {@code ForexController.syncRates}.
+     *
+     * <p><b>Pre-condition:</b> Admin.</p>
+     * <p><b>Post-condition:</b> 200 with live rates and provider.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-FXCTL-22 | ForexController.syncRates | admin -> 200 with live rates and provider")
@@ -253,6 +444,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.data.updatedRates[0].rate").value(63.944));
     }
 
+    /**
+     * TC-FXCTL-23: tests {@code ForexController.syncRates}.
+     *
+     * <p><b>Pre-condition:</b> Provider unreachable.</p>
+     * <p><b>Post-condition:</b> 503.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-FXCTL-23 | ForexController.syncRates | provider unreachable -> 503")
@@ -264,6 +463,14 @@ class ForexControllerTest {
                 .andExpect(jsonPath("$.errorType").value("Service Unavailable"));
     }
 
+    /**
+     * TC-FXCTL-24: tests {@code ForexController.syncRates}.
+     *
+     * <p><b>Pre-condition:</b> GBP not refreshed.</p>
+     * <p><b>Post-condition:</b> 200 listing GBP in failedCurrencies.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-FXCTL-24 | ForexController.syncRates | GBP not refreshed -> 200 listing GBP in failedCurrencies")

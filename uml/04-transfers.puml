@@ -1,0 +1,208 @@
+@startuml
+!pragma layout smetana
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam classFontStyle bold
+skinparam packageStyle rectangle
+skinparam ArrowColor #44546a
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #44546a
+  HeaderBackgroundColor #e8eef7
+}
+skinparam stereotypeCBackgroundColor #c9daf8
+skinparam package {
+  BorderColor #9aa5b4
+  FontColor #2a3442
+}
+hide empty members
+
+title GMoney - Transfers and ledger
+
+package "controller" {
+  class TransferController <<RestController>> {
+    -transferService : TransferService
+    --
+    +TransferController(transferService : TransferService)
+    +transferMoney(request : TransferRequestDTO, principal : Principal) : ResponseEntity<ApiResponse<String>>
+    +getTransferHistory(accountId : Long, principal : Principal) : ResponseEntity<ApiResponse<List<TransferRecordDTO>>>
+    -resolveUsername(principal : Principal) : String
+  }
+}
+package "service" {
+  class ExchangeRateService <<Service>> {
+    {static} +RATE_SCALE : int
+    {static} +MONEY_SCALE : int
+    {static} -INTERMEDIATE_SCALE : int
+    -exchangeRateRepository : ExchangeRateRepository
+    --
+    +ExchangeRateService(exchangeRateRepository : ExchangeRateRepository)
+    +createRate(dto : ExchangeRateDTO) : ExchangeRateDTO
+    +getAllRates() : List<ExchangeRateDTO>
+    +getRateById(id : Long) : ExchangeRateDTO
+    +updateRate(id : Long, dto : ExchangeRateDTO) : ExchangeRateDTO
+    +deleteRate(id : Long) : void
+    +getRate(from : String, to : String) : BigDecimal
+    +convert(amount : BigDecimal, from : String, to : String) : BigDecimal
+    +getQuote(from : String, to : String, amount : BigDecimal) : ForexQuoteDTO
+    -findDirectOrInverse(base : String, quote : String) : Optional<BigDecimal>
+    -convertToDTO(entity : ExchangeRate) : ExchangeRateDTO
+  }
+  class TransferService <<Service>> {
+    -accountRepository : AccountRepository
+    -transferRecordRepository : TransferRecordRepository
+    -exchangeRateService : ExchangeRateService
+    --
+    +TransferService(accountRepository : AccountRepository, transferRecordRepository : TransferRecordRepository, exchangeRateService : ExchangeRateService)
+    +transferMoney(fromId : Long, toId : Long, amount : BigDecimal, authenticatedUsername : String) : String
+    +getTransferHistory(accountId : Long, authenticatedUsername : String) : List<TransferRecordDTO>
+    -verifyOwnership(account : Account, username : String) : void
+    -validateAmount(amount : BigDecimal) : void
+    -currencyOf(account : Account) : String
+    -convertToDTO(record : TransferRecord, accountId : Long) : TransferRecordDTO
+  }
+}
+package "repository" {
+  interface AccountRepository <<Repository>> {
+    +findByStatus(status : String) : List<Account>
+    +findByCustomer_User_Username(username : String) : List<Account>
+    +existsByCustomer_IdAndCurrency(customerId : Long, currency : String) : boolean
+    +existsByCustomer_Id(customerId : Long) : boolean
+  }
+  interface TransferRecordRepository <<Repository>> {
+    +findBySourceAccountIdOrDestinationAccountId(sourceAccountId : Long, destinationAccountId : Long) : List<TransferRecord>
+  }
+}
+package "entity" {
+  class Account <<Entity>> {
+    -id : Long
+    -version : long
+    -accountType : String
+    -balance : BigDecimal
+    -status : String
+    -currency : String
+    -customer : Customer
+    -createdAt : LocalDateTime
+    -updateAt : LocalDateTime
+    --
+    +Account()
+    #onCreate() : void
+    #onUpdate() : void
+    +getId() : Long
+    +setId(id : Long) : void
+    +getAccountType() : String
+    +setAccountType(accountType : String) : void
+    +getBalance() : BigDecimal
+    +setBalance(balance : BigDecimal) : void
+    +getStatus() : String
+    +setStatus(status : String) : void
+    +getCurrency() : String
+    +setCurrency(currency : String) : void
+    +getCustomer() : Customer
+    +setCustomer(customer : Customer) : void
+    +getCreatedAt() : LocalDateTime
+    +getUpdateAt() : LocalDateTime
+  }
+  class TransferRecord <<Entity>> {
+    -id : Long
+    -sourceAccountId : Long
+    -destinationAccountId : Long
+    -amount : BigDecimal
+    -transferDate : LocalDateTime
+    -sourceCurrency : String
+    -destinationCurrency : String
+    -convertedAmount : BigDecimal
+    -exchangeRate : BigDecimal
+    --
+    +TransferRecord()
+    #onCreate() : void
+    +getId() : Long
+    +setId(id : Long) : void
+    +getSourceAccountId() : Long
+    +setSourceAccountId(sourceAccountId : Long) : void
+    +getDestinationAccountId() : Long
+    +setDestinationAccountId(destinationAccountId : Long) : void
+    +getAmount() : BigDecimal
+    +setAmount(amount : BigDecimal) : void
+    +getTransferDate() : LocalDateTime
+    +setTransferDate(transferDate : LocalDateTime) : void
+    +getSourceCurrency() : String
+    +setSourceCurrency(sourceCurrency : String) : void
+    +getDestinationCurrency() : String
+    +setDestinationCurrency(destinationCurrency : String) : void
+    +getConvertedAmount() : BigDecimal
+    +setConvertedAmount(convertedAmount : BigDecimal) : void
+    +getExchangeRate() : BigDecimal
+    +setExchangeRate(exchangeRate : BigDecimal) : void
+  }
+}
+package "dto" {
+  class TransferRecordDTO <<DTO>> {
+    -id : Long
+    -sourceAccountId : Long
+    -destinationAccountId : Long
+    -amount : BigDecimal
+    -transferDate : LocalDateTime
+    -sourceCurrency : String
+    -destinationCurrency : String
+    -convertedAmount : BigDecimal
+    -exchangeRate : BigDecimal
+    -direction : String
+    --
+    +TransferRecordDTO()
+    +getId() : Long
+    +setId(id : Long) : void
+    +getSourceAccountId() : Long
+    +setSourceAccountId(sourceAccountId : Long) : void
+    +getDestinationAccountId() : Long
+    +setDestinationAccountId(destinationAccountId : Long) : void
+    +getAmount() : BigDecimal
+    +setAmount(amount : BigDecimal) : void
+    +getTransferDate() : LocalDateTime
+    +setTransferDate(transferDate : LocalDateTime) : void
+    +getSourceCurrency() : String
+    +setSourceCurrency(sourceCurrency : String) : void
+    +getDestinationCurrency() : String
+    +setDestinationCurrency(destinationCurrency : String) : void
+    +getConvertedAmount() : BigDecimal
+    +setConvertedAmount(convertedAmount : BigDecimal) : void
+    +getExchangeRate() : BigDecimal
+    +setExchangeRate(exchangeRate : BigDecimal) : void
+    +getDirection() : String
+    +setDirection(direction : String) : void
+  }
+  class TransferRequestDTO <<DTO>> {
+    -fromId : Long
+    -toId : Long
+    -amount : BigDecimal
+    --
+    +TransferRequestDTO()
+    +getFromId() : Long
+    +setFromId(fromId : Long) : void
+    +getToId() : Long
+    +setToId(toId : Long) : void
+    +getAmount() : BigDecimal
+    +setAmount(amount : BigDecimal) : void
+  }
+}
+package "exception" {
+  class InvalidTransactionException <<Exception>> {
+    +InvalidTransactionException(message : String)
+  }
+}
+package "framework (external)" #f4f5f7 {
+  interface "JpaRepository<T, ID>" as JpaRepository <<Spring Data>>
+  class "RuntimeException" as RuntimeException <<Java>>
+}
+TransferController --> TransferService
+InvalidTransactionException --|> RuntimeException
+AccountRepository --|> JpaRepository
+AccountRepository ..> Account : <<manages>>
+TransferRecordRepository --|> JpaRepository
+TransferRecordRepository ..> TransferRecord : <<manages>>
+TransferService --> AccountRepository
+TransferService --> TransferRecordRepository
+TransferService --> ExchangeRateService
+TransferRecord ..> Account : sourceAccountId /\ndestinationAccountId
+@enduml

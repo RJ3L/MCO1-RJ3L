@@ -20,6 +20,9 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+/**
+ * Unit tests for {@link FrankfurterClient} against a mock HTTP server (no network).
+ */
 class FrankfurterClientTest {
 
     private static final String BASE_URL = "https://frankfurter.test/v1";
@@ -28,6 +31,13 @@ class FrankfurterClientTest {
     private MockRestServiceServer server;
     private FrankfurterClient client;
 
+    /**
+     * Binds a mock HTTP server to a fresh client before each test.
+     *
+     * <p><b>Pre-condition:</b> A new test is about to run.</p>
+     * <p><b>Post-condition:</b> {@code client} sends every request to {@code server} instead of the real
+     * Frankfurter API.</p>
+     */
     @BeforeEach
     void setUp() {
         RestClient.Builder builder = RestClient.builder();
@@ -35,6 +45,12 @@ class FrankfurterClientTest {
         client = new FrankfurterClient(builder, BASE_URL);
     }
 
+    /**
+     * TC-FXCLI-01: tests {@code FrankfurterClient.fetchLatestRate}.
+     *
+     * <p><b>Pre-condition:</b> USD-&gt;PHP 63.944.</p>
+     * <p><b>Post-condition:</b> Rate and ECB date parsed.</p>
+     */
     @Test
     @DisplayName("TC-FXCLI-01 | FrankfurterClient.fetchLatestRate | USD->PHP 63.944 -> rate and ECB date parsed")
     void fetch_parsesRateAndDate() {
@@ -51,6 +67,12 @@ class FrankfurterClientTest {
         server.verify();
     }
 
+    /**
+     * TC-FXCLI-02: tests {@code FrankfurterClient.fetchLatestRate}.
+     *
+     * <p><b>Pre-condition:</b> API answers 404.</p>
+     * <p><b>Post-condition:</b> RestClientException.</p>
+     */
     @Test
     @DisplayName("TC-FXCLI-02 | FrankfurterClient.fetchLatestRate | API answers 404 -> RestClientException")
     void fetch_httpError() {
@@ -58,6 +80,12 @@ class FrankfurterClientTest {
         assertThrows(RestClientException.class, () -> client.fetchLatestRate("USD", "PHP"));
     }
 
+    /**
+     * TC-FXCLI-03: tests {@code FrankfurterClient.fetchLatestRate}.
+     *
+     * <p><b>Pre-condition:</b> API down (503).</p>
+     * <p><b>Post-condition:</b> RestClientException.</p>
+     */
     @Test
     @DisplayName("TC-FXCLI-03 | FrankfurterClient.fetchLatestRate | API down (503) -> RestClientException")
     void fetch_serverError() {
@@ -65,6 +93,12 @@ class FrankfurterClientTest {
         assertThrows(RestClientException.class, () -> client.fetchLatestRate("USD", "PHP"));
     }
 
+    /**
+     * TC-FXCLI-04: tests {@code FrankfurterClient.fetchLatestRate}.
+     *
+     * <p><b>Pre-condition:</b> Response without the quote currency.</p>
+     * <p><b>Post-condition:</b> RestClientException.</p>
+     */
     @Test
     @DisplayName("TC-FXCLI-04 | FrankfurterClient.fetchLatestRate | response without the quote currency -> RestClientException")
     void fetch_missingQuote() {
@@ -74,6 +108,12 @@ class FrankfurterClientTest {
         assertTrue(ex.getMessage().contains("USD to PHP"));
     }
 
+    /**
+     * TC-FXCLI-05: tests {@code FrankfurterClient.fetchLatestRate}.
+     *
+     * <p><b>Pre-condition:</b> Zero rate.</p>
+     * <p><b>Post-condition:</b> RestClientException.</p>
+     */
     @Test
     @DisplayName("TC-FXCLI-05 | FrankfurterClient.fetchLatestRate | zero rate -> RestClientException")
     void fetch_zeroRate() {

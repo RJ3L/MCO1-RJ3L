@@ -26,6 +26,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for {@link TransferService}: the transfer engine, forex conversion,
+ * ownership checks and transfer history. Rollback itself is proven in
+ * {@code TransferIntegrationTest}; here we prove the right writes happen (or don't).
+ */
 @ExtendWith(MockitoExtension.class)
 class TransferServiceTest {
 
@@ -41,6 +46,18 @@ class TransferServiceTest {
     @InjectMocks
     private TransferService transferService;
 
+    /**
+     * Builds a wallet, optionally owned by a customer whose login is {@code owner}.
+     *
+     * <p><b>Pre-condition:</b> {@code balance} is a valid decimal string.</p>
+     * <p><b>Post-condition:</b> No state is changed.</p>
+     *
+     * @param id wallet id
+     * @param owner owner's login name, or {@code null} for no owner
+     * @param currency currency code
+     * @param balance balance as text
+     * @return the wallet
+     */
     private static Account wallet(Long id, String owner, String currency, String balance) {
         Account account = new Account();
         account.setId(id);
@@ -57,6 +74,19 @@ class TransferServiceTest {
         return account;
     }
 
+    /**
+     * Builds a PHP-to-PHP ledger row at rate 1.
+     *
+     * <p><b>Pre-condition:</b> {@code amount} is a valid decimal string.</p>
+     * <p><b>Post-condition:</b> No state is changed.</p>
+     *
+     * @param id record id
+     * @param from source wallet id
+     * @param to destination wallet id
+     * @param amount amount as text
+     * @param when transfer time
+     * @return the record
+     */
     private static TransferRecord record(Long id, Long from, Long to, String amount, LocalDateTime when) {
         TransferRecord r = new TransferRecord();
         r.setId(id);
@@ -71,6 +101,12 @@ class TransferServiceTest {
         return r;
     }
 
+    /**
+     * TC-TRFSVC-01: tests {@code TransferService.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Alice sends 100.00 PHP to Bob.</p>
+     * <p><b>Post-condition:</b> 900/600 and one ledger row.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-01 | TransferService.transferMoney | Alice sends 100.00 PHP to Bob -> 900/600 and one ledger row")
     void transferMoney_happyPath() {
@@ -92,6 +128,12 @@ class TransferServiceTest {
         verifyNoInteractions(exchangeRateService);
     }
 
+    /**
+     * TC-TRFSVC-02: tests {@code TransferService.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Unknown source.</p>
+     * <p><b>Post-condition:</b> 'Source account not found', nothing written.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-02 | TransferService.transferMoney | unknown source -> 'Source account not found', nothing written")
     void transferMoney_sourceMissing() {
@@ -105,6 +147,12 @@ class TransferServiceTest {
         verify(transferRecordRepository, never()).save(any());
     }
 
+    /**
+     * TC-TRFSVC-03: tests {@code TransferService.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Bob sends from Alice's account.</p>
+     * <p><b>Post-condition:</b> AccessDeniedException (403).</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-03 | TransferService.transferMoney | Bob sends from Alice's account -> AccessDeniedException (403)")
     void transferMoney_notOwner() {
@@ -115,6 +163,12 @@ class TransferServiceTest {
         verify(accountRepository, never()).save(any());
     }
 
+    /**
+     * TC-TRFSVC-04: tests {@code TransferService.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> 2000 from a 1000 balance.</p>
+     * <p><b>Post-condition:</b> 'Insufficient funds', nothing written.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-04 | TransferService.transferMoney | 2000 from a 1000 balance -> 'Insufficient funds', nothing written")
     void transferMoney_insufficientFunds() {
@@ -127,6 +181,12 @@ class TransferServiceTest {
         verify(accountRepository, never()).save(any());
     }
 
+    /**
+     * TC-TRFSVC-05: tests {@code TransferService.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Destination 999 missing.</p>
+     * <p><b>Post-condition:</b> 'Destination account not found', no ledger row.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-05 | TransferService.transferMoney | destination 999 missing -> 'Destination account not found', no ledger row")
     void transferMoney_destinationMissing() {
@@ -141,6 +201,12 @@ class TransferServiceTest {
         verify(transferRecordRepository, never()).save(any());
     }
 
+    /**
+     * TC-TRFSVC-06: tests {@code TransferService.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> 1000 PHP into a USD forex wallet at 0.017241.</p>
+     * <p><b>Post-condition:</b> 17.24 USD credited.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-06 | TransferService.transferMoney | 1000 PHP into a USD forex wallet at 0.017241 -> 17.24 USD credited")
     void transferMoney_forexConversion() {
@@ -163,6 +229,12 @@ class TransferServiceTest {
         assertEquals(new BigDecimal("0.017241"), ledger.getValue().getExchangeRate());
     }
 
+    /**
+     * TC-TRFSVC-07: tests {@code TransferService.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> FromId equals toId.</p>
+     * <p><b>Post-condition:</b> InvalidTransactionException.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-07 | TransferService.transferMoney | fromId equals toId -> InvalidTransactionException")
     void transferMoney_sameAccount() {
@@ -175,6 +247,12 @@ class TransferServiceTest {
         verify(accountRepository, never()).save(any());
     }
 
+    /**
+     * TC-TRFSVC-08: tests {@code TransferService.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Amount 0.</p>
+     * <p><b>Post-condition:</b> InvalidTransactionException, DB untouched.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-08 | TransferService.transferMoney | amount 0 -> InvalidTransactionException, DB untouched")
     void transferMoney_zeroAmount() {
@@ -183,6 +261,12 @@ class TransferServiceTest {
         verifyNoInteractions(accountRepository, transferRecordRepository);
     }
 
+    /**
+     * TC-TRFSVC-09: tests {@code TransferService.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Amount 10.005 (3 decimals).</p>
+     * <p><b>Post-condition:</b> InvalidTransactionException.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-09 | TransferService.transferMoney | amount 10.005 (3 decimals) -> InvalidTransactionException")
     void transferMoney_tooManyDecimals() {
@@ -191,6 +275,12 @@ class TransferServiceTest {
         assertEquals("Transfer amount cannot have more than 2 decimal places", ex.getMessage());
     }
 
+    /**
+     * TC-TRFSVC-10: tests {@code TransferService.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Source account without an owner.</p>
+     * <p><b>Post-condition:</b> AccessDeniedException.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-10 | TransferService.transferMoney | source account without an owner -> AccessDeniedException")
     void transferMoney_unownedSource() {
@@ -199,6 +289,12 @@ class TransferServiceTest {
                 () -> transferService.transferMoney(3L, 4L, BigDecimal.TEN, "alice"));
     }
 
+    /**
+     * TC-TRFSVC-11: tests {@code TransferService.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> No GBP-&gt;SGD rate.</p>
+     * <p><b>Post-condition:</b> Exception propagates, no credit, no ledger row.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-11 | TransferService.transferMoney | no GBP->SGD rate -> exception propagates, no credit, no ledger row")
     void transferMoney_missingRate() {
@@ -216,6 +312,12 @@ class TransferServiceTest {
         verify(transferRecordRepository, never()).save(any());
     }
 
+    /**
+     * TC-TRFSVC-12: tests {@code TransferService.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Legacy wallets without currency treated as PHP.</p>
+     * <p><b>Post-condition:</b> No conversion.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-12 | TransferService.transferMoney | legacy wallets without currency treated as PHP -> no conversion")
     void transferMoney_legacyCurrencyDefaultsToPhp() {
@@ -230,6 +332,12 @@ class TransferServiceTest {
         verifyNoInteractions(exchangeRateService);
     }
 
+    /**
+     * TC-TRFSVC-13: tests {@code TransferService.getTransferHistory}.
+     *
+     * <p><b>Pre-condition:</b> Owner.</p>
+     * <p><b>Post-condition:</b> Entries newest first, labelled SENT/RECEIVED.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-13 | TransferService.getTransferHistory | owner -> entries newest first, labelled SENT/RECEIVED")
     void getTransferHistory_owner() {
@@ -247,6 +355,12 @@ class TransferServiceTest {
         assertEquals("SENT", history.get(1).getDirection());
     }
 
+    /**
+     * TC-TRFSVC-14: tests {@code TransferService.getTransferHistory}.
+     *
+     * <p><b>Pre-condition:</b> Bob reads Alice's history.</p>
+     * <p><b>Post-condition:</b> AccessDeniedException, ledger not queried.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-14 | TransferService.getTransferHistory | Bob reads Alice's history -> AccessDeniedException, ledger not queried")
     void getTransferHistory_notOwner() {
@@ -256,6 +370,12 @@ class TransferServiceTest {
         verifyNoInteractions(transferRecordRepository);
     }
 
+    /**
+     * TC-TRFSVC-15: tests {@code TransferService.getTransferHistory}.
+     *
+     * <p><b>Pre-condition:</b> Unknown account.</p>
+     * <p><b>Post-condition:</b> 'Account not found'.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-15 | TransferService.getTransferHistory | unknown account -> 'Account not found'")
     void getTransferHistory_missingAccount() {
@@ -267,6 +387,12 @@ class TransferServiceTest {
         assertEquals("Account not found", ex.getMessage());
     }
 
+    /**
+     * TC-TRFSVC-16: tests {@code TransferService.getTransferHistory}.
+     *
+     * <p><b>Pre-condition:</b> Owner with no transfers.</p>
+     * <p><b>Post-condition:</b> Empty list.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-16 | TransferService.getTransferHistory | owner with no transfers -> empty list")
     void getTransferHistory_empty() {
@@ -276,6 +402,13 @@ class TransferServiceTest {
         assertTrue(transferService.getTransferHistory(3L, "alice").isEmpty());
     }
 
+
+    /**
+     * TC-TRFSVC-17: tests {@code TransferService.getTransferHistory}.
+     *
+     * <p><b>Pre-condition:</b> Received forex entry.</p>
+     * <p><b>Post-condition:</b> RECEIVED with both currencies, converted amount and rate.</p>
+     */
     @Test
     @DisplayName("TC-TRFSVC-17 | TransferService.getTransferHistory | received forex entry -> RECEIVED with both currencies, converted amount and rate")
     void getTransferHistory_receivedForexEntry() {
@@ -296,4 +429,3 @@ class TransferServiceTest {
         assertEquals(new BigDecimal("0.017241"), entry.getExchangeRate());
     }
 }
-

@@ -1,0 +1,149 @@
+@startuml
+!pragma layout smetana
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam classFontStyle bold
+skinparam packageStyle rectangle
+skinparam ArrowColor #44546a
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #44546a
+  HeaderBackgroundColor #e8eef7
+}
+skinparam stereotypeCBackgroundColor #c9daf8
+skinparam package {
+  BorderColor #9aa5b4
+  FontColor #2a3442
+}
+hide empty members
+
+title GMoney - Authentication and authorization
+
+package "controller" {
+  class AuthController <<RestController>> {
+    -authenticationManager : AuthenticationManager
+    -jwtUtil : JwtUtil
+    -userRepository : UserRepository
+    -passwordEncoder : PasswordEncoder
+    --
+    +AuthController(authenticationManager : AuthenticationManager, jwtUtil : JwtUtil, userRepository : UserRepository, passwordEncoder : PasswordEncoder)
+    +register(request : RegisterDTO) : ResponseEntity<ApiResponse<String>>
+    +registerAdmin(request : RegisterDTO) : ResponseEntity<ApiResponse<String>>
+    +login(request : LoginDTO) : ResponseEntity<ApiResponse<String>>
+    -registerUser(request : RegisterDTO, role : String) : ResponseEntity<ApiResponse<String>>
+  }
+}
+package "security" {
+  class AccountSecurity <<Component>> {
+    -userRepository : UserRepository
+    --
+    +AccountSecurity(userRepository : UserRepository)
+    +isOwnCustomer(customerId : Long, username : String) : boolean
+  }
+  class CustomAccessDeniedHandler <<Component>> {
+    -objectMapper : ObjectMapper
+    --
+    +CustomAccessDeniedHandler(objectMapper : ObjectMapper)
+    +handle(request : HttpServletRequest, response : HttpServletResponse, accessDeniedException : AccessDeniedException) : void
+  }
+  class CustomAuthenticationEntryPoint <<Component>> {
+    -objectMapper : ObjectMapper
+    --
+    +CustomAuthenticationEntryPoint(objectMapper : ObjectMapper)
+    +commence(request : HttpServletRequest, response : HttpServletResponse, authException : AuthenticationException) : void
+  }
+  class CustomUserDetailsService <<Service>> {
+    -userRepository : UserRepository
+    --
+    +CustomUserDetailsService(userRepository : UserRepository)
+    +loadUserByUsername(username : String) : UserDetails
+  }
+  class JwtAuthenticationFilter <<Component>> {
+    -jwtUtil : JwtUtil
+    -userDetailsService : CustomUserDetailsService
+    --
+    +JwtAuthenticationFilter(jwtUtil : JwtUtil, userDetailsService : CustomUserDetailsService)
+    #doFilterInternal(request : HttpServletRequest, response : HttpServletResponse, filterChain : FilterChain) : void
+  }
+  class JwtUtil <<Component>> {
+    -signingKey : Key
+    {static} -EXPIRATION_TIME : long
+    --
+    +JwtUtil(secret : String)
+    -getSigningKey() : Key
+    +generateToken(username : String) : String
+    +extractUsername(token : String) : String
+    +isTokenValid(token : String, userDetails : UserDetails) : boolean
+    -isTokenExpired(token : String) : boolean
+  }
+  class SecurityConfig <<Configuration>> {
+    -jwtAuthFilter : JwtAuthenticationFilter
+    -userDetailsService : CustomUserDetailsService
+    -authEntryPoint : CustomAuthenticationEntryPoint
+    -accessDeniedHandler : CustomAccessDeniedHandler
+    --
+    +SecurityConfig(jwtAuthFilter : JwtAuthenticationFilter, userDetailsService : CustomUserDetailsService, authEntryPoint : CustomAuthenticationEntryPoint, accessDeniedHandler : CustomAccessDeniedHandler)
+    +securityFilterChain(http : HttpSecurity) : SecurityFilterChain
+    +authenticationProvider() : AuthenticationProvider
+    +authenticationManager() : AuthenticationManager
+    +passwordEncoder() : PasswordEncoder
+  }
+}
+package "repository" {
+  interface UserRepository <<Repository>> {
+    +findByUsername(username : String) : Optional<User>
+  }
+}
+package "entity" {
+  class User <<Entity>> {
+    -id : Long
+    -username : String
+    -password : String
+    -role : String
+    -customer : Customer
+    --
+    +User()
+    +getAuthorities() : Collection<? extends GrantedAuthority>
+    +getPassword() : String
+    +getUsername() : String
+    +isAccountNonExpired() : boolean
+    +isAccountNonLocked() : boolean
+    +isCredentialsNonExpired() : boolean
+    +isEnabled() : boolean
+    +getId() : Long
+    +setId(id : Long) : void
+    +setUsername(username : String) : void
+    +setPassword(password : String) : void
+    +getRole() : String
+    +setRole(role : String) : void
+    +getCustomer() : Customer
+    +setCustomer(customer : Customer) : void
+  }
+}
+package "framework (external)" #f4f5f7 {
+  interface "AccessDeniedHandler" as AccessDeniedHandler <<Spring Security>>
+  interface "AuthenticationEntryPoint" as AuthenticationEntryPoint <<Spring Security>>
+  interface "JpaRepository<T, ID>" as JpaRepository <<Spring Data>>
+  abstract class "OncePerRequestFilter" as OncePerRequestFilter <<Spring Web>>
+  interface "UserDetails" as UserDetails <<Spring Security>>
+  interface "UserDetailsService" as UserDetailsService <<Spring Security>>
+}
+AuthController --> JwtUtil
+AuthController --> UserRepository
+User ..|> UserDetails
+UserRepository --|> JpaRepository
+UserRepository ..> User : <<manages>>
+AccountSecurity --> UserRepository
+CustomAccessDeniedHandler ..|> AccessDeniedHandler
+CustomAuthenticationEntryPoint ..|> AuthenticationEntryPoint
+CustomUserDetailsService ..|> UserDetailsService
+CustomUserDetailsService --> UserRepository
+JwtAuthenticationFilter --|> OncePerRequestFilter
+JwtAuthenticationFilter --> JwtUtil
+JwtAuthenticationFilter --> CustomUserDetailsService
+SecurityConfig --> JwtAuthenticationFilter
+SecurityConfig --> CustomUserDetailsService
+SecurityConfig --> CustomAuthenticationEntryPoint
+SecurityConfig --> CustomAccessDeniedHandler
+@enduml

@@ -20,6 +20,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for {@link DataSeeder}.
+ */
 @ExtendWith(MockitoExtension.class)
 class DataSeederTest {
 
@@ -34,11 +37,23 @@ class DataSeederTest {
 
     private DataSeeder seeder;
 
+    /**
+     * Creates the seeder with mocked repositories and the default admin credentials.
+     *
+     * <p><b>Pre-condition:</b> The Mockito mocks are initialised.</p>
+     * <p><b>Post-condition:</b> {@code seeder} is ready to run against the mocks.</p>
+     */
     @BeforeEach
     void setUp() {
         seeder = new DataSeeder(userRepository, exchangeRateRepository, passwordEncoder, "admin", "admin123");
     }
 
+    /**
+     * TC-SEED-01: tests {@code DataSeeder.run}.
+     *
+     * <p><b>Pre-condition:</b> Empty database.</p>
+     * <p><b>Post-condition:</b> Admin (ROLE_ADMIN, hashed password) and 4 rates created.</p>
+     */
     @Test
     @DisplayName("TC-SEED-01 | DataSeeder.run | empty database -> admin (ROLE_ADMIN, hashed password) and 4 rates created")
     void run_emptyDatabase() {
@@ -56,6 +71,12 @@ class DataSeederTest {
         verify(exchangeRateRepository, times(DataSeeder.DEFAULT_RATES.size())).save(any(ExchangeRate.class));
     }
 
+    /**
+     * TC-SEED-02: tests {@code DataSeeder.run}.
+     *
+     * <p><b>Pre-condition:</b> Admin and rates already exist.</p>
+     * <p><b>Post-condition:</b> Nothing saved (idempotent restart).</p>
+     */
     @Test
     @DisplayName("TC-SEED-02 | DataSeeder.run | admin and rates already exist -> nothing saved (idempotent restart)")
     void run_alreadySeeded() {
@@ -69,6 +90,12 @@ class DataSeederTest {
         verifyNoInteractions(passwordEncoder);
     }
 
+    /**
+     * TC-SEED-03: tests {@code DataSeeder.run}.
+     *
+     * <p><b>Pre-condition:</b> Only USD-&gt;PHP missing.</p>
+     * <p><b>Post-condition:</b> Only that rate is added, admin kept.</p>
+     */
     @Test
     @DisplayName("TC-SEED-03 | DataSeeder.run | only USD->PHP missing -> only that rate is added, admin kept")
     void run_partialRates() {

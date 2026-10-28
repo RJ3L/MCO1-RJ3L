@@ -1,0 +1,738 @@
+@startuml
+!pragma layout smetana
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam classFontStyle bold
+skinparam packageStyle rectangle
+skinparam ArrowColor #44546a
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #44546a
+  HeaderBackgroundColor #e8eef7
+}
+skinparam stereotypeCBackgroundColor #c9daf8
+skinparam package {
+  BorderColor #9aa5b4
+  FontColor #2a3442
+}
+hide empty members
+
+title GMoney - UML Class Diagram (all classes)
+
+package "com.fintech.walletapi" {
+  class GMoneyApplication <<SpringBootApplication>> {
+    {static} +main(args : String[]) : void
+  }
+}
+package "config" {
+  class DataSeeder <<Component>> {
+    {static} -log : Logger
+    {static} ~DEFAULT_RATES : List<ExchangeRate>
+    -userRepository : UserRepository
+    -exchangeRateRepository : ExchangeRateRepository
+    -passwordEncoder : PasswordEncoder
+    -adminUsername : String
+    -adminPassword : String
+    --
+    +DataSeeder(userRepository : UserRepository, exchangeRateRepository : ExchangeRateRepository, passwordEncoder : PasswordEncoder, adminUsername : String, adminPassword : String)
+    +run(args : String...) : void
+  }
+  class ForexRateSyncScheduler <<Configuration>> {
+    {static} -log : Logger
+    -forexRateSyncService : ForexRateSyncService
+    --
+    +ForexRateSyncScheduler(forexRateSyncService : ForexRateSyncService)
+    +syncOnStartup() : void
+    +syncOnSchedule() : void
+    -syncQuietly() : void
+  }
+  class OpenApiConfig <<Configuration>> {
+    {static} +BEARER_AUTH : String
+    --
+  }
+}
+package "controller" {
+  class AccountController <<RestController>> {
+    -accountService : AccountService
+    --
+    +AccountController(accountService : AccountService)
+    +createAccount(newAccount : AccountDTO) : ResponseEntity<ApiResponse<AccountDTO>>
+    +getAllAccounts("" : (value =, status : required = false) String) : ResponseEntity<ApiResponse<List<AccountDTO>>>
+    +getMyAccounts(authentication : Authentication) : ResponseEntity<ApiResponse<List<AccountDTO>>>
+    +getAccountById(id : Long) : ResponseEntity<ApiResponse<AccountDTO>>
+    +updatedAccount(id : Long, updatedAccount : BalanceUpdateDTO) : ResponseEntity<ApiResponse<AccountDTO>>
+    +closeAccount(id : Long) : ResponseEntity<ApiResponse<Void>>
+    +getAccountsPaginated(page : int, size : int) : ResponseEntity<ApiResponse<Page<AccountDTO>>>
+  }
+  class AuthController <<RestController>> {
+    -authenticationManager : AuthenticationManager
+    -jwtUtil : JwtUtil
+    -userRepository : UserRepository
+    -passwordEncoder : PasswordEncoder
+    --
+    +AuthController(authenticationManager : AuthenticationManager, jwtUtil : JwtUtil, userRepository : UserRepository, passwordEncoder : PasswordEncoder)
+    +register(request : RegisterDTO) : ResponseEntity<ApiResponse<String>>
+    +registerAdmin(request : RegisterDTO) : ResponseEntity<ApiResponse<String>>
+    +login(request : LoginDTO) : ResponseEntity<ApiResponse<String>>
+    -registerUser(request : RegisterDTO, role : String) : ResponseEntity<ApiResponse<String>>
+  }
+  class CustomerController <<RestController>> {
+    -customerService : CustomerService
+    --
+    +CustomerController(customerService : CustomerService)
+    +getCurrentCustomer(authentication : Authentication) : ResponseEntity<ApiResponse<CustomerDTO>>
+    +createCustomer(customerDTO : CustomerDTO) : ResponseEntity<ApiResponse<CustomerDTO>>
+    +getAllCustomers() : ResponseEntity<ApiResponse<List<CustomerDTO>>>
+    +getCustomerById(id : Long) : ResponseEntity<ApiResponse<CustomerDTO>>
+    +updateCustomer(id : Long, dto : CustomerDTO) : ResponseEntity<ApiResponse<CustomerDTO>>
+    +deleteCustomer(id : Long) : ResponseEntity<ApiResponse<Void>>
+  }
+  class ForexController <<RestController>> {
+    -exchangeRateService : ExchangeRateService
+    -forexRateSyncService : ForexRateSyncService
+    --
+    +ForexController(exchangeRateService : ExchangeRateService, forexRateSyncService : ForexRateSyncService)
+    +getSupportedCurrencies() : ResponseEntity<ApiResponse<Map<String, String>>>
+    +getAllRates() : ResponseEntity<ApiResponse<List<ExchangeRateDTO>>>
+    +getRateById(id : Long) : ResponseEntity<ApiResponse<ExchangeRateDTO>>
+    +createRate(dto : ExchangeRateDTO) : ResponseEntity<ApiResponse<ExchangeRateDTO>>
+    +updateRate(id : Long, dto : ExchangeRateDTO) : ResponseEntity<ApiResponse<ExchangeRateDTO>>
+    +deleteRate(id : Long) : ResponseEntity<ApiResponse<Void>>
+    +syncRates() : ResponseEntity<ApiResponse<ForexSyncResultDTO>>
+    +getQuote(from : String, to : String, amount : BigDecimal) : ResponseEntity<ApiResponse<ForexQuoteDTO>>
+  }
+  class TransferController <<RestController>> {
+    -transferService : TransferService
+    --
+    +TransferController(transferService : TransferService)
+    +transferMoney(request : TransferRequestDTO, principal : Principal) : ResponseEntity<ApiResponse<String>>
+    +getTransferHistory(accountId : Long, principal : Principal) : ResponseEntity<ApiResponse<List<TransferRecordDTO>>>
+    -resolveUsername(principal : Principal) : String
+  }
+}
+package "service" {
+  class AccountService <<Service>> {
+    -accountRepository : AccountRepository
+    -customerRepository : CustomerRepository
+    -transferRecordRepository : TransferRecordRepository
+    --
+    +AccountService(accountRepository : AccountRepository, customerRepository : CustomerRepository, transferRecordRepository : TransferRecordRepository)
+    +createAccount(dto : AccountDTO) : AccountDTO
+    +getAllAccounts() : List<AccountDTO>
+    +getMyAccounts(username : String) : List<AccountDTO>
+    +getAccountById(id : Long) : AccountDTO
+    +getAccountByStatus(status : String) : List<AccountDTO>
+    +closeAccount(id : Long) : boolean
+    +updateAccountBalance(id : Long, updatedAccount : AccountDTO) : AccountDTO
+    +getPaginatedAccounts(page : int, size : int) : Page<AccountDTO>
+    -convertToDTO(entity : Account) : AccountDTO
+  }
+  class CustomerService <<Service>> {
+    -customerRepository : CustomerRepository
+    -userRepository : UserRepository
+    -accountRepository : AccountRepository
+    --
+    +CustomerService(customerRepository : CustomerRepository, userRepository : UserRepository, accountRepository : AccountRepository)
+    +getCurrentCustomer(username : String) : CustomerDTO
+    +createCustomer(dto : CustomerDTO) : CustomerDTO
+    +getAllCustomers() : List<CustomerDTO>
+    +getCustomerById(id : Long) : CustomerDTO
+    +updateCustomer(id : Long, dto : CustomerDTO) : CustomerDTO
+    +deleteCustomer(id : Long) : void
+    -convertToDTO(customer : Customer) : CustomerDTO
+  }
+  class ExchangeRateService <<Service>> {
+    {static} +RATE_SCALE : int
+    {static} +MONEY_SCALE : int
+    {static} -INTERMEDIATE_SCALE : int
+    -exchangeRateRepository : ExchangeRateRepository
+    --
+    +ExchangeRateService(exchangeRateRepository : ExchangeRateRepository)
+    +createRate(dto : ExchangeRateDTO) : ExchangeRateDTO
+    +getAllRates() : List<ExchangeRateDTO>
+    +getRateById(id : Long) : ExchangeRateDTO
+    +updateRate(id : Long, dto : ExchangeRateDTO) : ExchangeRateDTO
+    +deleteRate(id : Long) : void
+    +getRate(from : String, to : String) : BigDecimal
+    +convert(amount : BigDecimal, from : String, to : String) : BigDecimal
+    +getQuote(from : String, to : String, amount : BigDecimal) : ForexQuoteDTO
+    -findDirectOrInverse(base : String, quote : String) : Optional<BigDecimal>
+    -convertToDTO(entity : ExchangeRate) : ExchangeRateDTO
+  }
+  class ForexRateSyncService <<Service>> {
+    {static} -log : Logger
+    -frankfurterClient : FrankfurterClient
+    -exchangeRateRepository : ExchangeRateRepository
+    --
+    +ForexRateSyncService(frankfurterClient : FrankfurterClient, exchangeRateRepository : ExchangeRateRepository)
+    +syncRates() : ForexSyncResultDTO
+    -upsert(base : String, quote : String, latest : LatestRate) : ExchangeRateDTO
+  }
+  class TransferService <<Service>> {
+    -accountRepository : AccountRepository
+    -transferRecordRepository : TransferRecordRepository
+    -exchangeRateService : ExchangeRateService
+    --
+    +TransferService(accountRepository : AccountRepository, transferRecordRepository : TransferRecordRepository, exchangeRateService : ExchangeRateService)
+    +transferMoney(fromId : Long, toId : Long, amount : BigDecimal, authenticatedUsername : String) : String
+    +getTransferHistory(accountId : Long, authenticatedUsername : String) : List<TransferRecordDTO>
+    -verifyOwnership(account : Account, username : String) : void
+    -validateAmount(amount : BigDecimal) : void
+    -currencyOf(account : Account) : String
+    -convertToDTO(record : TransferRecord, accountId : Long) : TransferRecordDTO
+  }
+}
+package "client" {
+  class FrankfurterClient <<Component>> {
+    {static} +PROVIDER_NAME : String
+    {static} -TIMEOUT : Duration
+    -restClient : RestClient
+    --
+    +FrankfurterClient(baseUrl : String)
+    +FrankfurterClient(builder : RestClient.Builder, baseUrl : String)
+    {static} -timeoutRequestFactory() : SimpleClientHttpRequestFactory
+    +fetchLatestRate(base : String, quote : String) : LatestRate
+  }
+  class "FrankfurterClient.LatestRate" as FrankfurterClient_LatestRate <<record>> {
+    -rate : BigDecimal
+    -date : LocalDate
+  }
+  class "FrankfurterClient.FrankfurterResponse" as FrankfurterClient_FrankfurterResponse <<record>> {
+    -amount : BigDecimal
+    -base : String
+    -date : LocalDate
+    -rates : Map<String
+    -BigDecimal>
+  }
+}
+package "security" {
+  class AccountSecurity <<Component>> {
+    -userRepository : UserRepository
+    --
+    +AccountSecurity(userRepository : UserRepository)
+    +isOwnCustomer(customerId : Long, username : String) : boolean
+  }
+  class CustomAccessDeniedHandler <<Component>> {
+    -objectMapper : ObjectMapper
+    --
+    +CustomAccessDeniedHandler(objectMapper : ObjectMapper)
+    +handle(request : HttpServletRequest, response : HttpServletResponse, accessDeniedException : AccessDeniedException) : void
+  }
+  class CustomAuthenticationEntryPoint <<Component>> {
+    -objectMapper : ObjectMapper
+    --
+    +CustomAuthenticationEntryPoint(objectMapper : ObjectMapper)
+    +commence(request : HttpServletRequest, response : HttpServletResponse, authException : AuthenticationException) : void
+  }
+  class CustomUserDetailsService <<Service>> {
+    -userRepository : UserRepository
+    --
+    +CustomUserDetailsService(userRepository : UserRepository)
+    +loadUserByUsername(username : String) : UserDetails
+  }
+  class JwtAuthenticationFilter <<Component>> {
+    -jwtUtil : JwtUtil
+    -userDetailsService : CustomUserDetailsService
+    --
+    +JwtAuthenticationFilter(jwtUtil : JwtUtil, userDetailsService : CustomUserDetailsService)
+    #doFilterInternal(request : HttpServletRequest, response : HttpServletResponse, filterChain : FilterChain) : void
+  }
+  class JwtUtil <<Component>> {
+    -signingKey : Key
+    {static} -EXPIRATION_TIME : long
+    --
+    +JwtUtil(secret : String)
+    -getSigningKey() : Key
+    +generateToken(username : String) : String
+    +extractUsername(token : String) : String
+    +isTokenValid(token : String, userDetails : UserDetails) : boolean
+    -isTokenExpired(token : String) : boolean
+  }
+  class SecurityConfig <<Configuration>> {
+    -jwtAuthFilter : JwtAuthenticationFilter
+    -userDetailsService : CustomUserDetailsService
+    -authEntryPoint : CustomAuthenticationEntryPoint
+    -accessDeniedHandler : CustomAccessDeniedHandler
+    --
+    +SecurityConfig(jwtAuthFilter : JwtAuthenticationFilter, userDetailsService : CustomUserDetailsService, authEntryPoint : CustomAuthenticationEntryPoint, accessDeniedHandler : CustomAccessDeniedHandler)
+    +securityFilterChain(http : HttpSecurity) : SecurityFilterChain
+    +authenticationProvider() : AuthenticationProvider
+    +authenticationManager() : AuthenticationManager
+    +passwordEncoder() : PasswordEncoder
+  }
+}
+package "repository" {
+  interface AccountRepository <<Repository>> {
+    +findByStatus(status : String) : List<Account>
+    +findByCustomer_User_Username(username : String) : List<Account>
+    +existsByCustomer_IdAndCurrency(customerId : Long, currency : String) : boolean
+    +existsByCustomer_Id(customerId : Long) : boolean
+  }
+  interface CustomerRepository <<Repository>> {
+    +findByFullNameContaining(keyword : String) : List<Customer>
+  }
+  interface ExchangeRateRepository <<Repository>> {
+    +findByBaseCurrencyAndQuoteCurrency(baseCurrency : String, quoteCurrency : String) : Optional<ExchangeRate>
+    +existsByBaseCurrencyAndQuoteCurrency(baseCurrency : String, quoteCurrency : String) : boolean
+  }
+  interface TransferRecordRepository <<Repository>> {
+    +findBySourceAccountIdOrDestinationAccountId(sourceAccountId : Long, destinationAccountId : Long) : List<TransferRecord>
+  }
+  interface UserRepository <<Repository>> {
+    +findByUsername(username : String) : Optional<User>
+  }
+}
+package "entity" {
+  class Account <<Entity>> {
+    -id : Long
+    -version : long
+    -accountType : String
+    -balance : BigDecimal
+    -status : String
+    -currency : String
+    -customer : Customer
+    -createdAt : LocalDateTime
+    -updateAt : LocalDateTime
+    --
+    +Account()
+    #onCreate() : void
+    #onUpdate() : void
+    +getId() : Long
+    +setId(id : Long) : void
+    +getAccountType() : String
+    +setAccountType(accountType : String) : void
+    +getBalance() : BigDecimal
+    +setBalance(balance : BigDecimal) : void
+    +getStatus() : String
+    +setStatus(status : String) : void
+    +getCurrency() : String
+    +setCurrency(currency : String) : void
+    +getCustomer() : Customer
+    +setCustomer(customer : Customer) : void
+    +getCreatedAt() : LocalDateTime
+    +getUpdateAt() : LocalDateTime
+  }
+  class Customer <<Entity>> {
+    -id : Long
+    -fullName : String
+    -email : String
+    -phone : String
+    -user : User
+    --
+    +Customer()
+    +getId() : Long
+    +setId(id : Long) : void
+    +getFullName() : String
+    +setFullName(fullName : String) : void
+    +getEmail() : String
+    +setEmail(email : String) : void
+    +getPhone() : String
+    +setPhone(phone : String) : void
+    +getUser() : User
+    +setUser(user : User) : void
+  }
+  class ExchangeRate <<Entity>> {
+    -id : Long
+    -baseCurrency : String
+    -quoteCurrency : String
+    -rate : BigDecimal
+    -updatedAt : LocalDateTime
+    --
+    +ExchangeRate()
+    +ExchangeRate(baseCurrency : String, quoteCurrency : String, rate : BigDecimal)
+    #touch() : void
+    +getId() : Long
+    +setId(id : Long) : void
+    +getBaseCurrency() : String
+    +setBaseCurrency(baseCurrency : String) : void
+    +getQuoteCurrency() : String
+    +setQuoteCurrency(quoteCurrency : String) : void
+    +getRate() : BigDecimal
+    +setRate(rate : BigDecimal) : void
+    +getUpdatedAt() : LocalDateTime
+  }
+  enum SupportedCurrency {
+    PHP
+    USD
+    EUR
+    GBP
+    SGD
+    --
+    {static} +HOME : SupportedCurrency
+    -displayName : String
+    --
+    ~SupportedCurrency(displayName : String)
+    +getDisplayName() : String
+    {static} +isSupported(code : String) : boolean
+    {static} +fromCode(code : String) : SupportedCurrency
+  }
+  class TransferRecord <<Entity>> {
+    -id : Long
+    -sourceAccountId : Long
+    -destinationAccountId : Long
+    -amount : BigDecimal
+    -transferDate : LocalDateTime
+    -sourceCurrency : String
+    -destinationCurrency : String
+    -convertedAmount : BigDecimal
+    -exchangeRate : BigDecimal
+    --
+    +TransferRecord()
+    #onCreate() : void
+    +getId() : Long
+    +setId(id : Long) : void
+    +getSourceAccountId() : Long
+    +setSourceAccountId(sourceAccountId : Long) : void
+    +getDestinationAccountId() : Long
+    +setDestinationAccountId(destinationAccountId : Long) : void
+    +getAmount() : BigDecimal
+    +setAmount(amount : BigDecimal) : void
+    +getTransferDate() : LocalDateTime
+    +setTransferDate(transferDate : LocalDateTime) : void
+    +getSourceCurrency() : String
+    +setSourceCurrency(sourceCurrency : String) : void
+    +getDestinationCurrency() : String
+    +setDestinationCurrency(destinationCurrency : String) : void
+    +getConvertedAmount() : BigDecimal
+    +setConvertedAmount(convertedAmount : BigDecimal) : void
+    +getExchangeRate() : BigDecimal
+    +setExchangeRate(exchangeRate : BigDecimal) : void
+  }
+  class User <<Entity>> {
+    -id : Long
+    -username : String
+    -password : String
+    -role : String
+    -customer : Customer
+    --
+    +User()
+    +getAuthorities() : Collection<? extends GrantedAuthority>
+    +getPassword() : String
+    +getUsername() : String
+    +isAccountNonExpired() : boolean
+    +isAccountNonLocked() : boolean
+    +isCredentialsNonExpired() : boolean
+    +isEnabled() : boolean
+    +getId() : Long
+    +setId(id : Long) : void
+    +setUsername(username : String) : void
+    +setPassword(password : String) : void
+    +getRole() : String
+    +setRole(role : String) : void
+    +getCustomer() : Customer
+    +setCustomer(customer : Customer) : void
+  }
+}
+package "dto" {
+  class AccountDTO <<DTO>> {
+    -id : Long
+    -customerId : Long
+    -customerName : String
+    -balance : BigDecimal
+    -status : String
+    -accountType : String
+    -currency : String
+    -username : String
+    --
+    +AccountDTO()
+    +getId() : Long
+    +setId(id : Long) : void
+    +getCustomerId() : Long
+    +setCustomerId(customerId : Long) : void
+    +getCustomerName() : String
+    +setCustomerName(customerName : String) : void
+    +getBalance() : BigDecimal
+    +setBalance(balance : BigDecimal) : void
+    +getStatus() : String
+    +setStatus(status : String) : void
+    +getAccountType() : String
+    +setAccountType(accountType : String) : void
+    +getCurrency() : String
+    +setCurrency(currency : String) : void
+    +getUsername() : String
+    +setUsername(username : String) : void
+  }
+  class ApiResponse <<DTO>> {
+    -timestamp : LocalDateTime
+    -status : int
+    -message : String
+    -data : T
+    --
+    +ApiResponse()
+    +ApiResponse(status : int, message : String, data : T)
+    +ApiResponse(status : int, message : String)
+    +getTimestamp() : LocalDateTime
+    +setTimestamp(timestamp : LocalDateTime) : void
+    +getStatus() : int
+    +setStatus(status : int) : void
+    +getMessage() : String
+    +setMessage(message : String) : void
+    +getData() : T
+    +setData(data : T) : void
+  }
+  class BalanceUpdateDTO <<DTO>> {
+    -balance : BigDecimal
+    --
+    +getBalance() : BigDecimal
+    +setBalance(balance : BigDecimal) : void
+  }
+  class CustomerDTO <<DTO>> {
+    -id : Long
+    -fullName : String
+    -email : String
+    -phone : String
+    -username : String
+    --
+    +CustomerDTO()
+    +CustomerDTO(id : Long, fullName : String, email : String, phone : String, username : String)
+    +CustomerDTO(id : Long, fullName : String)
+    +getId() : Long
+    +setId(id : Long) : void
+    +getFullName() : String
+    +setFullName(fullName : String) : void
+    +getEmail() : String
+    +setEmail(email : String) : void
+    +getPhone() : String
+    +setPhone(phone : String) : void
+    +getUsername() : String
+    +setUsername(username : String) : void
+  }
+  class ExchangeRateDTO <<DTO>> {
+    -id : Long
+    -baseCurrency : String
+    -quoteCurrency : String
+    -rate : BigDecimal
+    -updatedAt : LocalDateTime
+    --
+    +ExchangeRateDTO()
+    +getId() : Long
+    +setId(id : Long) : void
+    +getBaseCurrency() : String
+    +setBaseCurrency(baseCurrency : String) : void
+    +getQuoteCurrency() : String
+    +setQuoteCurrency(quoteCurrency : String) : void
+    +getRate() : BigDecimal
+    +setRate(rate : BigDecimal) : void
+    +getUpdatedAt() : LocalDateTime
+    +setUpdatedAt(updatedAt : LocalDateTime) : void
+  }
+  class ForexQuoteDTO <<DTO>> {
+    -fromCurrency : String
+    -toCurrency : String
+    -amount : BigDecimal
+    -rate : BigDecimal
+    -convertedAmount : BigDecimal
+    --
+    +ForexQuoteDTO()
+    +ForexQuoteDTO(fromCurrency : String, toCurrency : String, amount : BigDecimal, rate : BigDecimal, convertedAmount : BigDecimal)
+    +getFromCurrency() : String
+    +setFromCurrency(fromCurrency : String) : void
+    +getToCurrency() : String
+    +setToCurrency(toCurrency : String) : void
+    +getAmount() : BigDecimal
+    +setAmount(amount : BigDecimal) : void
+    +getRate() : BigDecimal
+    +setRate(rate : BigDecimal) : void
+    +getConvertedAmount() : BigDecimal
+    +setConvertedAmount(convertedAmount : BigDecimal) : void
+  }
+  class ForexSyncResultDTO <<DTO>> {
+    -provider : String
+    -rateDate : LocalDate
+    -updatedRates : List<ExchangeRateDTO>
+    -failedCurrencies : List<String>
+    --
+    +ForexSyncResultDTO()
+    +ForexSyncResultDTO(provider : String, rateDate : LocalDate, updatedRates : List<ExchangeRateDTO>, failedCurrencies : List<String>)
+    +getProvider() : String
+    +setProvider(provider : String) : void
+    +getRateDate() : LocalDate
+    +setRateDate(rateDate : LocalDate) : void
+    +getUpdatedRates() : List<ExchangeRateDTO>
+    +setUpdatedRates(updatedRates : List<ExchangeRateDTO>) : void
+    +getFailedCurrencies() : List<String>
+    +setFailedCurrencies(failedCurrencies : List<String>) : void
+  }
+  class LoginDTO <<DTO>> {
+    -username : String
+    -password : String
+    --
+    +LoginDTO()
+    +getUsername() : String
+    +setUsername(username : String) : void
+    +getPassword() : String
+    +setPassword(password : String) : void
+  }
+  class RegisterDTO <<DTO>> {
+    -username : String
+    -password : String
+    -fullName : String
+    -email : String
+    -phone : String
+    --
+    +RegisterDTO()
+    +getUsername() : String
+    +setUsername(username : String) : void
+    +getPassword() : String
+    +setPassword(password : String) : void
+    +getFullName() : String
+    +setFullName(fullName : String) : void
+    +getEmail() : String
+    +setEmail(email : String) : void
+    +getPhone() : String
+    +setPhone(phone : String) : void
+  }
+  class TransferRecordDTO <<DTO>> {
+    -id : Long
+    -sourceAccountId : Long
+    -destinationAccountId : Long
+    -amount : BigDecimal
+    -transferDate : LocalDateTime
+    -sourceCurrency : String
+    -destinationCurrency : String
+    -convertedAmount : BigDecimal
+    -exchangeRate : BigDecimal
+    -direction : String
+    --
+    +TransferRecordDTO()
+    +getId() : Long
+    +setId(id : Long) : void
+    +getSourceAccountId() : Long
+    +setSourceAccountId(sourceAccountId : Long) : void
+    +getDestinationAccountId() : Long
+    +setDestinationAccountId(destinationAccountId : Long) : void
+    +getAmount() : BigDecimal
+    +setAmount(amount : BigDecimal) : void
+    +getTransferDate() : LocalDateTime
+    +setTransferDate(transferDate : LocalDateTime) : void
+    +getSourceCurrency() : String
+    +setSourceCurrency(sourceCurrency : String) : void
+    +getDestinationCurrency() : String
+    +setDestinationCurrency(destinationCurrency : String) : void
+    +getConvertedAmount() : BigDecimal
+    +setConvertedAmount(convertedAmount : BigDecimal) : void
+    +getExchangeRate() : BigDecimal
+    +setExchangeRate(exchangeRate : BigDecimal) : void
+    +getDirection() : String
+    +setDirection(direction : String) : void
+  }
+  class TransferRequestDTO <<DTO>> {
+    -fromId : Long
+    -toId : Long
+    -amount : BigDecimal
+    --
+    +TransferRequestDTO()
+    +getFromId() : Long
+    +setFromId(fromId : Long) : void
+    +getToId() : Long
+    +setToId(toId : Long) : void
+    +getAmount() : BigDecimal
+    +setAmount(amount : BigDecimal) : void
+  }
+}
+package "exception" {
+  class DuplicateWalletException <<Exception>> {
+    +DuplicateWalletException(message : String)
+  }
+  class ErrorResponseDTO {
+    -timestamp : LocalDateTime
+    -status : int
+    -errorType : String
+    -message : String
+    --
+    +ErrorResponseDTO(status : int, errorType : String, message : String)
+    +getTimestamp() : LocalDateTime
+    +setTimestamp(timestamp : LocalDateTime) : void
+    +getStatus() : int
+    +setStatus(status : int) : void
+    +getErrorType() : String
+    +setErrorType(errorType : String) : void
+    +getMessage() : String
+    +setMessage(message : String) : void
+  }
+  class ForexProviderUnavailableException <<Exception>> {
+    +ForexProviderUnavailableException(message : String)
+  }
+  class GlobalExceptionHandler <<ControllerAdvice>> {
+    +handleValidationErrors(ex : MethodArgumentNotValidException) : ResponseEntity<ErrorResponseDTO>
+    +handleNotFound(ex : IllegalArgumentException) : ResponseEntity<ErrorResponseDTO>
+    +handleInvalidTransaction(ex : InvalidTransactionException) : ResponseEntity<ErrorResponseDTO>
+    +handleDuplicateWallet(ex : DuplicateWalletException) : ResponseEntity<ErrorResponseDTO>
+    +handleDataIntegrityViolation(ex : DataIntegrityViolationException) : ResponseEntity<ErrorResponseDTO>
+    +handleProviderUnavailable(ex : ForexProviderUnavailableException) : ResponseEntity<ErrorResponseDTO>
+    +handleBadCredentials(ex : BadCredentialsException) : ResponseEntity<ErrorResponseDTO>
+    +handleAccessDenied(ex : AccessDeniedException) : ResponseEntity<ErrorResponseDTO>
+    +handleBadRequest(ex : Exception) : ResponseEntity<ErrorResponseDTO>
+    +handleConcurrentUpdate(ex : OptimisticLockingFailureException) : ResponseEntity<ErrorResponseDTO>
+    +handleEverythingElse(ex : Exception) : ResponseEntity<ErrorResponseDTO>
+  }
+  class InvalidTransactionException <<Exception>> {
+    +InvalidTransactionException(message : String)
+  }
+}
+package "framework (external)" #f4f5f7 {
+  interface "AccessDeniedHandler" as AccessDeniedHandler <<Spring Security>>
+  interface "AuthenticationEntryPoint" as AuthenticationEntryPoint <<Spring Security>>
+  interface "CommandLineRunner" as CommandLineRunner <<Spring Boot>>
+  interface "JpaRepository<T, ID>" as JpaRepository <<Spring Data>>
+  abstract class "OncePerRequestFilter" as OncePerRequestFilter <<Spring Web>>
+  class "RuntimeException" as RuntimeException <<Java>>
+  interface "UserDetails" as UserDetails <<Spring Security>>
+  interface "UserDetailsService" as UserDetailsService <<Spring Security>>
+}
+FrankfurterClient +-- FrankfurterClient_LatestRate
+FrankfurterClient +-- FrankfurterClient_FrankfurterResponse
+DataSeeder ..|> CommandLineRunner
+DataSeeder --> UserRepository
+DataSeeder --> ExchangeRateRepository
+ForexRateSyncScheduler --> ForexRateSyncService
+AccountController --> AccountService
+AuthController --> JwtUtil
+AuthController --> UserRepository
+CustomerController --> CustomerService
+ForexController --> ExchangeRateService
+ForexController --> ForexRateSyncService
+TransferController --> TransferService
+Account "0..*" --> "1" Customer : customer
+User ..|> UserDetails
+User "0..1" -- "1" Customer : customer >
+DuplicateWalletException --|> RuntimeException
+ForexProviderUnavailableException --|> RuntimeException
+InvalidTransactionException --|> RuntimeException
+AccountRepository --|> JpaRepository
+AccountRepository ..> Account : <<manages>>
+CustomerRepository --|> JpaRepository
+CustomerRepository ..> Customer : <<manages>>
+ExchangeRateRepository --|> JpaRepository
+ExchangeRateRepository ..> ExchangeRate : <<manages>>
+TransferRecordRepository --|> JpaRepository
+TransferRecordRepository ..> TransferRecord : <<manages>>
+UserRepository --|> JpaRepository
+UserRepository ..> User : <<manages>>
+AccountSecurity --> UserRepository
+CustomAccessDeniedHandler ..|> AccessDeniedHandler
+CustomAuthenticationEntryPoint ..|> AuthenticationEntryPoint
+CustomUserDetailsService ..|> UserDetailsService
+CustomUserDetailsService --> UserRepository
+JwtAuthenticationFilter --|> OncePerRequestFilter
+JwtAuthenticationFilter --> JwtUtil
+JwtAuthenticationFilter --> CustomUserDetailsService
+SecurityConfig --> JwtAuthenticationFilter
+SecurityConfig --> CustomUserDetailsService
+SecurityConfig --> CustomAuthenticationEntryPoint
+SecurityConfig --> CustomAccessDeniedHandler
+AccountService --> AccountRepository
+AccountService --> CustomerRepository
+AccountService --> TransferRecordRepository
+CustomerService --> CustomerRepository
+CustomerService --> UserRepository
+CustomerService --> AccountRepository
+ExchangeRateService --> ExchangeRateRepository
+ForexRateSyncService --> FrankfurterClient
+ForexRateSyncService --> ExchangeRateRepository
+TransferService --> AccountRepository
+TransferService --> TransferRecordRepository
+TransferService --> ExchangeRateService
+TransferRecord ..> Account : sourceAccountId /\ndestinationAccountId
+@enduml

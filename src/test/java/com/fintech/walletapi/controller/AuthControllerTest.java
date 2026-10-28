@@ -27,6 +27,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Controller slice tests for {@link AuthController}.
+ */
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class AuthControllerTest {
@@ -52,6 +55,14 @@ class AuthControllerTest {
     private static final String ALICE_REGISTRATION = "{\"username\":\"alice\",\"password\":\"password123\","
             + "\"fullName\":\"Alice Johnson\",\"email\":\"alice@example.com\",\"phone\":\"09171234567\"}";
 
+    /**
+     * TC-AUTHCTL-01: tests {@code AuthController.register}.
+     *
+     * <p><b>Pre-condition:</b> New username.</p>
+     * <p><b>Post-condition:</b> 201, password hashed, ROLE_CUSTOMER with profile.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-AUTHCTL-01 | AuthController.register | new username -> 201, password hashed, ROLE_CUSTOMER with profile")
     void register_ok() throws Exception {
@@ -69,6 +80,14 @@ class AuthControllerTest {
         assertEquals("Alice Johnson", saved.getValue().getCustomer().getFullName());
     }
 
+    /**
+     * TC-AUTHCTL-02: tests {@code AuthController.register}.
+     *
+     * <p><b>Pre-condition:</b> Username taken.</p>
+     * <p><b>Post-condition:</b> 409 'Username already exists'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-AUTHCTL-02 | AuthController.register | username taken -> 409 'Username already exists'")
     void register_duplicate() throws Exception {
@@ -79,6 +98,14 @@ class AuthControllerTest {
         verify(userRepository, never()).save(any());
     }
 
+    /**
+     * TC-AUTHCTL-03: tests {@code AuthController.register}.
+     *
+     * <p><b>Pre-condition:</b> Invalid e-mail.</p>
+     * <p><b>Post-condition:</b> 400 'Email must be a valid email address'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-AUTHCTL-03 | AuthController.register | invalid e-mail -> 400 'Email must be a valid email address'")
     void register_badEmail() throws Exception {
@@ -88,6 +115,14 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value("Email must be a valid email address"));
     }
 
+    /**
+     * TC-AUTHCTL-04: tests {@code AuthController.registerAdmin}.
+     *
+     * <p><b>Pre-condition:</b> Admin creates admin.</p>
+     * <p><b>Post-condition:</b> 201, ROLE_ADMIN saved.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-AUTHCTL-04 | AuthController.registerAdmin | admin creates admin -> 201, ROLE_ADMIN saved")
@@ -102,6 +137,14 @@ class AuthControllerTest {
         assertEquals("ROLE_ADMIN", saved.getValue().getRole());
     }
 
+    /**
+     * TC-AUTHCTL-05: tests {@code AuthController.registerAdmin}.
+     *
+     * <p><b>Pre-condition:</b> Username taken.</p>
+     * <p><b>Post-condition:</b> 409.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-AUTHCTL-05 | AuthController.registerAdmin | username taken -> 409")
@@ -111,6 +154,14 @@ class AuthControllerTest {
                 .andExpect(status().isConflict());
     }
 
+    /**
+     * TC-AUTHCTL-06: tests {@code AuthController.registerAdmin}.
+     *
+     * <p><b>Pre-condition:</b> Missing password.</p>
+     * <p><b>Post-condition:</b> 400 'Password is required'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-AUTHCTL-06 | AuthController.registerAdmin | missing password -> 400 'Password is required'")
@@ -121,6 +172,14 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value("Password is required"));
     }
 
+    /**
+     * TC-AUTHCTL-07: tests {@code AuthController.login}.
+     *
+     * <p><b>Pre-condition:</b> Correct credentials.</p>
+     * <p><b>Post-condition:</b> 200 with token in data.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-AUTHCTL-07 | AuthController.login | correct credentials -> 200 with token in data")
     void login_ok() throws Exception {
@@ -132,6 +191,14 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data").value("jwt-token"));
     }
 
+    /**
+     * TC-AUTHCTL-08: tests {@code AuthController.login}.
+     *
+     * <p><b>Pre-condition:</b> Wrong password.</p>
+     * <p><b>Post-condition:</b> 401 'Invalid username or password', no token.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-AUTHCTL-08 | AuthController.login | wrong password -> 401 'Invalid username or password', no token")
     void login_badCredentials() throws Exception {
@@ -143,6 +210,14 @@ class AuthControllerTest {
         verify(jwtUtil, never()).generateToken(any());
     }
 
+    /**
+     * TC-AUTHCTL-09: tests {@code AuthController.login}.
+     *
+     * <p><b>Pre-condition:</b> Blank username.</p>
+     * <p><b>Post-condition:</b> 400 'Username is required'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-AUTHCTL-09 | AuthController.login | blank username -> 400 'Username is required'")
     void login_blankUsername() throws Exception {
@@ -152,11 +227,30 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value("Username is required"));
     }
 
+
+    /**
+     * Builds a registration JSON body with an optional phone fragment.
+     *
+     * <p><b>Pre-condition:</b> {@code phoneJson} is empty or a JSON fragment starting with a comma.</p>
+     * <p><b>Post-condition:</b> No state is changed.</p>
+     *
+     * @param username login name; also used for the e-mail
+     * @param phoneJson for example {@code ,"phone":"12345"}, or empty
+     * @return the request body
+     */
     private static String registration(String username, String phoneJson) {
         return "{\"username\":\"" + username + "\",\"password\":\"password123\",\"fullName\":\"Phone Tester\","
                 + "\"email\":\"" + username + "@example.com\"" + phoneJson + "}";
     }
 
+    /**
+     * TC-AUTHCTL-10: tests {@code AuthController.register}.
+     *
+     * <p><b>Pre-condition:</b> Phone +639171234567.</p>
+     * <p><b>Post-condition:</b> 201, phone saved on the profile.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-AUTHCTL-10 | AuthController.register | phone +639171234567 -> 201, phone saved on the profile")
     void register_internationalPhone() throws Exception {
@@ -171,6 +265,14 @@ class AuthControllerTest {
         assertEquals("+639171234567", saved.getValue().getCustomer().getPhone());
     }
 
+    /**
+     * TC-AUTHCTL-11: tests {@code AuthController.register}.
+     *
+     * <p><b>Pre-condition:</b> No phone given.</p>
+     * <p><b>Post-condition:</b> 201 (phone is optional).</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-AUTHCTL-11 | AuthController.register | no phone given -> 201 (phone is optional)")
     void register_withoutPhone() throws Exception {
@@ -181,6 +283,14 @@ class AuthControllerTest {
         verify(userRepository).save(any(User.class));
     }
 
+    /**
+     * TC-AUTHCTL-12: tests {@code AuthController.register}.
+     *
+     * <p><b>Pre-condition:</b> Phone '12345' (too short).</p>
+     * <p><b>Post-condition:</b> 400 with phone message, nothing saved.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-AUTHCTL-12 | AuthController.register | phone '12345' (too short) -> 400 with phone message, nothing saved")
     void register_shortPhone() throws Exception {
@@ -191,6 +301,14 @@ class AuthControllerTest {
         verify(userRepository, never()).save(any());
     }
 
+    /**
+     * TC-AUTHCTL-13: tests {@code AuthController.register}.
+     *
+     * <p><b>Pre-condition:</b> Phone '0917-123-4567' (dashes).</p>
+     * <p><b>Post-condition:</b> 400.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-AUTHCTL-13 | AuthController.register | phone '0917-123-4567' (dashes) -> 400")
     void register_dashedPhone() throws Exception {
@@ -200,6 +318,14 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value("Phone must be a Philippine mobile number such as 09171234567 or +639171234567"));
     }
 
+    /**
+     * TC-AUTHCTL-14: tests {@code AuthController.register}.
+     *
+     * <p><b>Pre-condition:</b> Swagger placeholder phone 'string'.</p>
+     * <p><b>Post-condition:</b> 400.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-AUTHCTL-14 | AuthController.register | Swagger placeholder phone 'string' -> 400")
     void register_placeholderPhone() throws Exception {
@@ -209,6 +335,14 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value("Phone must be a Philippine mobile number such as 09171234567 or +639171234567"));
     }
 
+    /**
+     * TC-AUTHCTL-15: tests {@code AuthController.registerAdmin}.
+     *
+     * <p><b>Pre-condition:</b> Phone '0817123456' (wrong prefix).</p>
+     * <p><b>Post-condition:</b> 400, nothing saved.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-AUTHCTL-15 | AuthController.registerAdmin | phone '0817123456' (wrong prefix) -> 400, nothing saved")
@@ -220,4 +354,3 @@ class AuthControllerTest {
         verify(userRepository, never()).save(any());
     }
 }
-

@@ -18,6 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for {@link ForexRateSyncScheduler}: both triggers delegate to
+ * {@link ForexRateSyncService}, and a provider outage never escapes into the scheduler thread.
+ */
 @ExtendWith(MockitoExtension.class)
 class ForexRateSyncSchedulerTest {
 
@@ -27,10 +31,24 @@ class ForexRateSyncSchedulerTest {
     @InjectMocks
     private ForexRateSyncScheduler scheduler;
 
+    /**
+     * Builds a successful, empty sync result.
+     *
+     * <p><b>Pre-condition:</b> None.</p>
+     * <p><b>Post-condition:</b> No state is changed.</p>
+     *
+     * @return a result from the Frankfurter provider with no updates and no failures
+     */
     private static ForexSyncResultDTO ok() {
         return new ForexSyncResultDTO(FrankfurterClient.PROVIDER_NAME, LocalDate.of(2026, 10, 26), List.of(), List.of());
     }
 
+    /**
+     * TC-FXSCH-01: tests {@code ForexRateSyncScheduler.syncOnStartup}.
+     *
+     * <p><b>Pre-condition:</b> Application ready.</p>
+     * <p><b>Post-condition:</b> One sync is run.</p>
+     */
     @Test
     @DisplayName("TC-FXSCH-01 | ForexRateSyncScheduler.syncOnStartup | application ready -> one sync is run")
     void startup_runsSync() {
@@ -39,6 +57,12 @@ class ForexRateSyncSchedulerTest {
         verify(forexRateSyncService, times(1)).syncRates();
     }
 
+    /**
+     * TC-FXSCH-02: tests {@code ForexRateSyncScheduler.syncOnStartup}.
+     *
+     * <p><b>Pre-condition:</b> Provider down.</p>
+     * <p><b>Post-condition:</b> Startup continues, no exception.</p>
+     */
     @Test
     @DisplayName("TC-FXSCH-02 | ForexRateSyncScheduler.syncOnStartup | provider down -> startup continues, no exception")
     void startup_providerDown() {
@@ -46,6 +70,12 @@ class ForexRateSyncSchedulerTest {
         assertDoesNotThrow(() -> scheduler.syncOnStartup());
     }
 
+    /**
+     * TC-FXSCH-03: tests {@code ForexRateSyncScheduler.syncOnStartup}.
+     *
+     * <p><b>Pre-condition:</b> Unexpected bug.</p>
+     * <p><b>Post-condition:</b> Not swallowed (propagates).</p>
+     */
     @Test
     @DisplayName("TC-FXSCH-03 | ForexRateSyncScheduler.syncOnStartup | unexpected bug -> not swallowed (propagates)")
     void startup_unexpectedError() {
@@ -53,6 +83,12 @@ class ForexRateSyncSchedulerTest {
         assertThrows(IllegalStateException.class, () -> scheduler.syncOnStartup());
     }
 
+    /**
+     * TC-FXSCH-04: tests {@code ForexRateSyncScheduler.syncOnSchedule}.
+     *
+     * <p><b>Pre-condition:</b> Cron fires.</p>
+     * <p><b>Post-condition:</b> One sync is run.</p>
+     */
     @Test
     @DisplayName("TC-FXSCH-04 | ForexRateSyncScheduler.syncOnSchedule | cron fires -> one sync is run")
     void schedule_runsSync() {
@@ -61,6 +97,12 @@ class ForexRateSyncSchedulerTest {
         verify(forexRateSyncService, times(1)).syncRates();
     }
 
+    /**
+     * TC-FXSCH-05: tests {@code ForexRateSyncScheduler.syncOnSchedule}.
+     *
+     * <p><b>Pre-condition:</b> Provider down.</p>
+     * <p><b>Post-condition:</b> Logged, scheduler keeps running.</p>
+     */
     @Test
     @DisplayName("TC-FXSCH-05 | ForexRateSyncScheduler.syncOnSchedule | provider down -> logged, scheduler keeps running")
     void schedule_providerDown() {
@@ -69,6 +111,12 @@ class ForexRateSyncSchedulerTest {
         verify(forexRateSyncService).syncRates();
     }
 
+    /**
+     * TC-FXSCH-06: tests {@code ForexRateSyncScheduler.syncOnSchedule}.
+     *
+     * <p><b>Pre-condition:</b> Fires twice.</p>
+     * <p><b>Post-condition:</b> Two independent syncs.</p>
+     */
     @Test
     @DisplayName("TC-FXSCH-06 | ForexRateSyncScheduler.syncOnSchedule | fires twice -> two independent syncs")
     void schedule_twice() {

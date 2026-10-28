@@ -29,6 +29,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Controller slice tests for {@link AccountController} (Week 6 tests included).
+ */
 @WebMvcTest(AccountController.class)
 @AutoConfigureMockMvc(addFilters = false)
 public class AccountControllerTest {
@@ -45,6 +48,17 @@ public class AccountControllerTest {
     @MockitoBean
     private JwtUtil jwtUtil;
 
+    /**
+     * Builds an active savings wallet DTO.
+     *
+     * <p><b>Pre-condition:</b> {@code balance} is a valid decimal string.</p>
+     * <p><b>Post-condition:</b> No state is changed.</p>
+     *
+     * @param id wallet id
+     * @param currency currency code
+     * @param balance balance as text, e.g. {@code "0.00"}
+     * @return the wallet DTO
+     */
     private static AccountDTO account(Long id, String currency, String balance) {
         AccountDTO dto = new AccountDTO();
         dto.setId(id);
@@ -58,6 +72,14 @@ public class AccountControllerTest {
     private static final String NEW_USD_WALLET =
             "{\"customerId\":1,\"accountType\":\"SAVINGS\",\"balance\":0.00,\"status\":\"ACTIVE\",\"currency\":\"USD\"}";
 
+    /**
+     * TC-ACCCTL-01: tests {@code AccountController.getAccountById}.
+     *
+     * <p><b>Pre-condition:</b> Existing id 5.</p>
+     * <p><b>Post-condition:</b> 200 'Account found' with JSON body.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-01 | AccountController.getAccountById | existing id 5 -> 200 'Account found' with JSON body")
     public void testGetAccount_Returns200AndJson() throws Exception {
@@ -74,6 +96,14 @@ public class AccountControllerTest {
                 .andExpect(jsonPath("$.data.balance").value(250.00));
     }
 
+    /**
+     * TC-ACCCTL-02: tests {@code AccountController.getAccountById}.
+     *
+     * <p><b>Pre-condition:</b> Unknown id 99.</p>
+     * <p><b>Post-condition:</b> 404.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-02 | AccountController.getAccountById | unknown id 99 -> 404")
     public void testGetAccount_NotFound_Returns404() throws Exception {
@@ -83,6 +113,14 @@ public class AccountControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    /**
+     * TC-ACCCTL-03: tests {@code AccountController.getAccountById}.
+     *
+     * <p><b>Pre-condition:</b> Someone else's wallet.</p>
+     * <p><b>Post-condition:</b> 403.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-03 | AccountController.getAccountById | someone else's wallet -> 403")
     void getAccount_forbidden() throws Exception {
@@ -91,6 +129,14 @@ public class AccountControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    /**
+     * TC-ACCCTL-04: tests {@code AccountController.createAccount}.
+     *
+     * <p><b>Pre-condition:</b> USD forex wallet.</p>
+     * <p><b>Post-condition:</b> 201 with currency USD.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-04 | AccountController.createAccount | USD forex wallet -> 201 with currency USD")
     void create_usdWallet() throws Exception {
@@ -101,6 +147,14 @@ public class AccountControllerTest {
                 .andExpect(jsonPath("$.data.currency").value("USD"));
     }
 
+    /**
+     * TC-ACCCTL-05: tests {@code AccountController.createAccount}.
+     *
+     * <p><b>Pre-condition:</b> Negative balance.</p>
+     * <p><b>Post-condition:</b> 400 'Balance cannot be negative'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-05 | AccountController.createAccount | negative balance -> 400 'Balance cannot be negative'")
     void create_negativeBalance() throws Exception {
@@ -111,6 +165,14 @@ public class AccountControllerTest {
         verifyNoInteractions(accountService);
     }
 
+    /**
+     * TC-ACCCTL-06: tests {@code AccountController.createAccount}.
+     *
+     * <p><b>Pre-condition:</b> Currency 'US' (not 3 letters).</p>
+     * <p><b>Post-condition:</b> 400.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-06 | AccountController.createAccount | currency 'US' (not 3 letters) -> 400")
     void create_badCurrencyFormat() throws Exception {
@@ -119,6 +181,14 @@ public class AccountControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * TC-ACCCTL-23: tests {@code AccountController.createAccount}.
+     *
+     * <p><b>Pre-condition:</b> Second USD wallet for the customer.</p>
+     * <p><b>Post-condition:</b> 409 Conflict.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-23 | AccountController.createAccount | second USD wallet for the customer -> 409 Conflict")
     void create_duplicateCurrency() throws Exception {
@@ -130,6 +200,14 @@ public class AccountControllerTest {
                 .andExpect(jsonPath("$.message").value("Customer 1 already has a USD wallet"));
     }
 
+    /**
+     * TC-ACCCTL-07: tests {@code AccountController.createAccount}.
+     *
+     * <p><b>Pre-condition:</b> Unsupported currency JPY.</p>
+     * <p><b>Post-condition:</b> 400 'Invalid Transaction'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-07 | AccountController.createAccount | unsupported currency JPY -> 400 'Invalid Transaction'")
     void create_unsupportedCurrency() throws Exception {
@@ -140,6 +218,14 @@ public class AccountControllerTest {
                 .andExpect(jsonPath("$.errorType").value("Invalid Transaction"));
     }
 
+    /**
+     * TC-ACCCTL-08: tests {@code AccountController.getAllAccounts}.
+     *
+     * <p><b>Pre-condition:</b> No filter.</p>
+     * <p><b>Post-condition:</b> GetAllAccounts used.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-08 | AccountController.getAllAccounts | no filter -> getAllAccounts used")
     void getAll_noFilter() throws Exception {
@@ -150,6 +236,14 @@ public class AccountControllerTest {
         verify(accountService, never()).getAccountByStatus(any());
     }
 
+    /**
+     * TC-ACCCTL-09: tests {@code AccountController.getAllAccounts}.
+     *
+     * <p><b>Pre-condition:</b> ?status=ACTIVE.</p>
+     * <p><b>Post-condition:</b> Filter used.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-09 | AccountController.getAllAccounts | ?status=ACTIVE -> filter used")
     void getAll_statusFilter() throws Exception {
@@ -160,6 +254,14 @@ public class AccountControllerTest {
         verify(accountService, never()).getAllAccounts();
     }
 
+    /**
+     * TC-ACCCTL-10: tests {@code AccountController.getAllAccounts}.
+     *
+     * <p><b>Pre-condition:</b> Customer (not admin).</p>
+     * <p><b>Post-condition:</b> 403.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-10 | AccountController.getAllAccounts | customer (not admin) -> 403")
     void getAll_forbidden() throws Exception {
@@ -168,6 +270,14 @@ public class AccountControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    /**
+     * TC-ACCCTL-11: tests {@code AccountController.getMyAccounts}.
+     *
+     * <p><b>Pre-condition:</b> Alice.</p>
+     * <p><b>Post-condition:</b> Her PHP and USD wallets.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-11 | AccountController.getMyAccounts | alice -> her PHP and USD wallets")
     void mine_twoWallets() throws Exception {
@@ -177,6 +287,14 @@ public class AccountControllerTest {
                 .andExpect(jsonPath("$.data[1].currency").value("USD"));
     }
 
+    /**
+     * TC-ACCCTL-12: tests {@code AccountController.getMyAccounts}.
+     *
+     * <p><b>Pre-condition:</b> User with no wallets.</p>
+     * <p><b>Post-condition:</b> Empty list.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-12 | AccountController.getMyAccounts | user with no wallets -> empty list")
     void mine_none() throws Exception {
@@ -186,6 +304,14 @@ public class AccountControllerTest {
                 .andExpect(jsonPath("$.data.length()").value(0));
     }
 
+    /**
+     * TC-ACCCTL-13: tests {@code AccountController.getMyAccounts}.
+     *
+     * <p><b>Pre-condition:</b> A standard call to the method under test.</p>
+     * <p><b>Post-condition:</b> Username taken from the token, not the URL.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-13 | AccountController.getMyAccounts | username taken from the token, not the URL")
     void mine_usesToken() throws Exception {
@@ -195,6 +321,14 @@ public class AccountControllerTest {
         verify(accountService).getMyAccounts("bob");
     }
 
+    /**
+     * TC-ACCCTL-14: tests {@code AccountController.updatedAccount}.
+     *
+     * <p><b>Pre-condition:</b> Existing id.</p>
+     * <p><b>Post-condition:</b> 200 'Account updated successfully'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-14 | AccountController.updatedAccount | existing id -> 200 'Account updated successfully'")
     void update_ok() throws Exception {
@@ -204,6 +338,14 @@ public class AccountControllerTest {
                 .andExpect(jsonPath("$.data.balance").value(900.00));
     }
 
+    /**
+     * TC-ACCCTL-15: tests {@code AccountController.updatedAccount}.
+     *
+     * <p><b>Pre-condition:</b> Unknown id.</p>
+     * <p><b>Post-condition:</b> 404.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-15 | AccountController.updatedAccount | unknown id -> 404")
     void update_missing() throws Exception {
@@ -212,6 +354,14 @@ public class AccountControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    /**
+     * TC-ACCCTL-16: tests {@code AccountController.updatedAccount}.
+     *
+     * <p><b>Pre-condition:</b> Malformed JSON.</p>
+     * <p><b>Post-condition:</b> 400.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-16 | AccountController.updatedAccount | malformed JSON -> 400")
     void update_badJson() throws Exception {
@@ -219,6 +369,14 @@ public class AccountControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * TC-ACCCTL-17: tests {@code AccountController.closeAccount}.
+     *
+     * <p><b>Pre-condition:</b> Existing id.</p>
+     * <p><b>Post-condition:</b> 200 'Account closed successfully'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-17 | AccountController.closeAccount | existing id -> 200 'Account closed successfully'")
     void close_ok() throws Exception {
@@ -228,6 +386,14 @@ public class AccountControllerTest {
                 .andExpect(jsonPath("$.message").value("Account closed successfully"));
     }
 
+    /**
+     * TC-ACCCTL-18: tests {@code AccountController.closeAccount}.
+     *
+     * <p><b>Pre-condition:</b> Unknown id.</p>
+     * <p><b>Post-condition:</b> 404.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-18 | AccountController.closeAccount | unknown id -> 404")
     void close_missing() throws Exception {
@@ -236,6 +402,14 @@ public class AccountControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    /**
+     * TC-ACCCTL-19: tests {@code AccountController.closeAccount}.
+     *
+     * <p><b>Pre-condition:</b> Non-admin.</p>
+     * <p><b>Post-condition:</b> 403.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-19 | AccountController.closeAccount | non-admin -> 403")
     void close_forbidden() throws Exception {
@@ -244,6 +418,14 @@ public class AccountControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    /**
+     * TC-ACCCTL-20: tests {@code AccountController.getAccountsPaginated}.
+     *
+     * <p><b>Pre-condition:</b> Defaults.</p>
+     * <p><b>Post-condition:</b> Page 0 size 5 requested.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-20 | AccountController.getAccountsPaginated | defaults -> page 0 size 5 requested")
     void page_defaults() throws Exception {
@@ -254,6 +436,14 @@ public class AccountControllerTest {
         verify(accountService).getPaginatedAccounts(0, 5);
     }
 
+    /**
+     * TC-ACCCTL-21: tests {@code AccountController.getAccountsPaginated}.
+     *
+     * <p><b>Pre-condition:</b> ?page=2&amp;size=3.</p>
+     * <p><b>Post-condition:</b> Forwarded.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-21 | AccountController.getAccountsPaginated | ?page=2&size=3 -> forwarded")
     void page_custom() throws Exception {
@@ -264,6 +454,14 @@ public class AccountControllerTest {
         verify(accountService).getPaginatedAccounts(2, 3);
     }
 
+    /**
+     * TC-ACCCTL-22: tests {@code AccountController.getAccountsPaginated}.
+     *
+     * <p><b>Pre-condition:</b> ?page=abc.</p>
+     * <p><b>Post-condition:</b> 400.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-22 | AccountController.getAccountsPaginated | ?page=abc -> 400")
     void page_badParam() throws Exception {
@@ -271,6 +469,14 @@ public class AccountControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * TC-ACCCTL-24: tests {@code AccountController.updatedAccount}.
+     *
+     * <p><b>Pre-condition:</b> Missing balance.</p>
+     * <p><b>Post-condition:</b> 400, service not called.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-24 | AccountController.updatedAccount | missing balance -> 400, service not called")
     void updateMissingBalance() throws Exception {
@@ -278,6 +484,14 @@ public class AccountControllerTest {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errorType").value("Validation Failed"));
         verify(accountService, never()).updateAccountBalance(any(), any());
     }
+    /**
+     * TC-ACCCTL-25: tests {@code AccountController.updatedAccount}.
+     *
+     * <p><b>Pre-condition:</b> Negative balance.</p>
+     * <p><b>Post-condition:</b> 400, service not called.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-25 | AccountController.updatedAccount | negative balance -> 400, service not called")
     void updateNegativeBalance() throws Exception {
@@ -285,6 +499,14 @@ public class AccountControllerTest {
                 .andExpect(status().isBadRequest());
         verify(accountService, never()).updateAccountBalance(any(), any());
     }
+    /**
+     * TC-ACCCTL-26: tests {@code AccountController.updatedAccount}.
+     *
+     * <p><b>Pre-condition:</b> Fractional cent.</p>
+     * <p><b>Post-condition:</b> 400, service not called.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-ACCCTL-26 | AccountController.updatedAccount | fractional cent -> 400, service not called")
     void updateFractionalCent() throws Exception {

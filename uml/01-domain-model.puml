@@ -1,0 +1,203 @@
+@startuml
+!pragma layout smetana
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam classFontStyle bold
+skinparam packageStyle rectangle
+skinparam ArrowColor #44546a
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #44546a
+  HeaderBackgroundColor #e8eef7
+}
+skinparam stereotypeCBackgroundColor #c9daf8
+skinparam package {
+  BorderColor #9aa5b4
+  FontColor #2a3442
+}
+hide empty members
+
+title GMoney - Domain model: entities and repositories
+
+package "repository" {
+  interface AccountRepository <<Repository>> {
+    +findByStatus(status : String) : List<Account>
+    +findByCustomer_User_Username(username : String) : List<Account>
+    +existsByCustomer_IdAndCurrency(customerId : Long, currency : String) : boolean
+    +existsByCustomer_Id(customerId : Long) : boolean
+  }
+  interface CustomerRepository <<Repository>> {
+    +findByFullNameContaining(keyword : String) : List<Customer>
+  }
+  interface ExchangeRateRepository <<Repository>> {
+    +findByBaseCurrencyAndQuoteCurrency(baseCurrency : String, quoteCurrency : String) : Optional<ExchangeRate>
+    +existsByBaseCurrencyAndQuoteCurrency(baseCurrency : String, quoteCurrency : String) : boolean
+  }
+  interface TransferRecordRepository <<Repository>> {
+    +findBySourceAccountIdOrDestinationAccountId(sourceAccountId : Long, destinationAccountId : Long) : List<TransferRecord>
+  }
+  interface UserRepository <<Repository>> {
+    +findByUsername(username : String) : Optional<User>
+  }
+}
+package "entity" {
+  class Account <<Entity>> {
+    -id : Long
+    -version : long
+    -accountType : String
+    -balance : BigDecimal
+    -status : String
+    -currency : String
+    -customer : Customer
+    -createdAt : LocalDateTime
+    -updateAt : LocalDateTime
+    --
+    +Account()
+    #onCreate() : void
+    #onUpdate() : void
+    +getId() : Long
+    +setId(id : Long) : void
+    +getAccountType() : String
+    +setAccountType(accountType : String) : void
+    +getBalance() : BigDecimal
+    +setBalance(balance : BigDecimal) : void
+    +getStatus() : String
+    +setStatus(status : String) : void
+    +getCurrency() : String
+    +setCurrency(currency : String) : void
+    +getCustomer() : Customer
+    +setCustomer(customer : Customer) : void
+    +getCreatedAt() : LocalDateTime
+    +getUpdateAt() : LocalDateTime
+  }
+  class Customer <<Entity>> {
+    -id : Long
+    -fullName : String
+    -email : String
+    -phone : String
+    -user : User
+    --
+    +Customer()
+    +getId() : Long
+    +setId(id : Long) : void
+    +getFullName() : String
+    +setFullName(fullName : String) : void
+    +getEmail() : String
+    +setEmail(email : String) : void
+    +getPhone() : String
+    +setPhone(phone : String) : void
+    +getUser() : User
+    +setUser(user : User) : void
+  }
+  class ExchangeRate <<Entity>> {
+    -id : Long
+    -baseCurrency : String
+    -quoteCurrency : String
+    -rate : BigDecimal
+    -updatedAt : LocalDateTime
+    --
+    +ExchangeRate()
+    +ExchangeRate(baseCurrency : String, quoteCurrency : String, rate : BigDecimal)
+    #touch() : void
+    +getId() : Long
+    +setId(id : Long) : void
+    +getBaseCurrency() : String
+    +setBaseCurrency(baseCurrency : String) : void
+    +getQuoteCurrency() : String
+    +setQuoteCurrency(quoteCurrency : String) : void
+    +getRate() : BigDecimal
+    +setRate(rate : BigDecimal) : void
+    +getUpdatedAt() : LocalDateTime
+  }
+  enum SupportedCurrency {
+    PHP
+    USD
+    EUR
+    GBP
+    SGD
+    --
+    {static} +HOME : SupportedCurrency
+    -displayName : String
+    --
+    ~SupportedCurrency(displayName : String)
+    +getDisplayName() : String
+    {static} +isSupported(code : String) : boolean
+    {static} +fromCode(code : String) : SupportedCurrency
+  }
+  class TransferRecord <<Entity>> {
+    -id : Long
+    -sourceAccountId : Long
+    -destinationAccountId : Long
+    -amount : BigDecimal
+    -transferDate : LocalDateTime
+    -sourceCurrency : String
+    -destinationCurrency : String
+    -convertedAmount : BigDecimal
+    -exchangeRate : BigDecimal
+    --
+    +TransferRecord()
+    #onCreate() : void
+    +getId() : Long
+    +setId(id : Long) : void
+    +getSourceAccountId() : Long
+    +setSourceAccountId(sourceAccountId : Long) : void
+    +getDestinationAccountId() : Long
+    +setDestinationAccountId(destinationAccountId : Long) : void
+    +getAmount() : BigDecimal
+    +setAmount(amount : BigDecimal) : void
+    +getTransferDate() : LocalDateTime
+    +setTransferDate(transferDate : LocalDateTime) : void
+    +getSourceCurrency() : String
+    +setSourceCurrency(sourceCurrency : String) : void
+    +getDestinationCurrency() : String
+    +setDestinationCurrency(destinationCurrency : String) : void
+    +getConvertedAmount() : BigDecimal
+    +setConvertedAmount(convertedAmount : BigDecimal) : void
+    +getExchangeRate() : BigDecimal
+    +setExchangeRate(exchangeRate : BigDecimal) : void
+  }
+  class User <<Entity>> {
+    -id : Long
+    -username : String
+    -password : String
+    -role : String
+    -customer : Customer
+    --
+    +User()
+    +getAuthorities() : Collection<? extends GrantedAuthority>
+    +getPassword() : String
+    +getUsername() : String
+    +isAccountNonExpired() : boolean
+    +isAccountNonLocked() : boolean
+    +isCredentialsNonExpired() : boolean
+    +isEnabled() : boolean
+    +getId() : Long
+    +setId(id : Long) : void
+    +setUsername(username : String) : void
+    +setPassword(password : String) : void
+    +getRole() : String
+    +setRole(role : String) : void
+    +getCustomer() : Customer
+    +setCustomer(customer : Customer) : void
+  }
+}
+package "framework (external)" #f4f5f7 {
+  interface "JpaRepository<T, ID>" as JpaRepository <<Spring Data>>
+  interface "UserDetails" as UserDetails <<Spring Security>>
+}
+Account "0..*" --> "1" Customer : customer
+User ..|> UserDetails
+User "0..1" -- "1" Customer : customer >
+AccountRepository --|> JpaRepository
+AccountRepository ..> Account : <<manages>>
+CustomerRepository --|> JpaRepository
+CustomerRepository ..> Customer : <<manages>>
+ExchangeRateRepository --|> JpaRepository
+ExchangeRateRepository ..> ExchangeRate : <<manages>>
+TransferRecordRepository --|> JpaRepository
+TransferRecordRepository ..> TransferRecord : <<manages>>
+UserRepository --|> JpaRepository
+UserRepository ..> User : <<manages>>
+TransferRecord ..> Account : sourceAccountId /\ndestinationAccountId
+@enduml

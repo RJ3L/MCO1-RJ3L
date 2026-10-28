@@ -1,0 +1,223 @@
+@startuml
+!pragma layout smetana
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam classFontStyle bold
+skinparam packageStyle rectangle
+skinparam ArrowColor #44546a
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #44546a
+  HeaderBackgroundColor #e8eef7
+}
+skinparam stereotypeCBackgroundColor #c9daf8
+skinparam package {
+  BorderColor #9aa5b4
+  FontColor #2a3442
+}
+hide empty members
+
+title GMoney - Forex: rates, live sync and quotes
+
+package "config" {
+  class ForexRateSyncScheduler <<Configuration>> {
+    {static} -log : Logger
+    -forexRateSyncService : ForexRateSyncService
+    --
+    +ForexRateSyncScheduler(forexRateSyncService : ForexRateSyncService)
+    +syncOnStartup() : void
+    +syncOnSchedule() : void
+    -syncQuietly() : void
+  }
+}
+package "controller" {
+  class ForexController <<RestController>> {
+    -exchangeRateService : ExchangeRateService
+    -forexRateSyncService : ForexRateSyncService
+    --
+    +ForexController(exchangeRateService : ExchangeRateService, forexRateSyncService : ForexRateSyncService)
+    +getSupportedCurrencies() : ResponseEntity<ApiResponse<Map<String, String>>>
+    +getAllRates() : ResponseEntity<ApiResponse<List<ExchangeRateDTO>>>
+    +getRateById(id : Long) : ResponseEntity<ApiResponse<ExchangeRateDTO>>
+    +createRate(dto : ExchangeRateDTO) : ResponseEntity<ApiResponse<ExchangeRateDTO>>
+    +updateRate(id : Long, dto : ExchangeRateDTO) : ResponseEntity<ApiResponse<ExchangeRateDTO>>
+    +deleteRate(id : Long) : ResponseEntity<ApiResponse<Void>>
+    +syncRates() : ResponseEntity<ApiResponse<ForexSyncResultDTO>>
+    +getQuote(from : String, to : String, amount : BigDecimal) : ResponseEntity<ApiResponse<ForexQuoteDTO>>
+  }
+}
+package "service" {
+  class ExchangeRateService <<Service>> {
+    {static} +RATE_SCALE : int
+    {static} +MONEY_SCALE : int
+    {static} -INTERMEDIATE_SCALE : int
+    -exchangeRateRepository : ExchangeRateRepository
+    --
+    +ExchangeRateService(exchangeRateRepository : ExchangeRateRepository)
+    +createRate(dto : ExchangeRateDTO) : ExchangeRateDTO
+    +getAllRates() : List<ExchangeRateDTO>
+    +getRateById(id : Long) : ExchangeRateDTO
+    +updateRate(id : Long, dto : ExchangeRateDTO) : ExchangeRateDTO
+    +deleteRate(id : Long) : void
+    +getRate(from : String, to : String) : BigDecimal
+    +convert(amount : BigDecimal, from : String, to : String) : BigDecimal
+    +getQuote(from : String, to : String, amount : BigDecimal) : ForexQuoteDTO
+    -findDirectOrInverse(base : String, quote : String) : Optional<BigDecimal>
+    -convertToDTO(entity : ExchangeRate) : ExchangeRateDTO
+  }
+  class ForexRateSyncService <<Service>> {
+    {static} -log : Logger
+    -frankfurterClient : FrankfurterClient
+    -exchangeRateRepository : ExchangeRateRepository
+    --
+    +ForexRateSyncService(frankfurterClient : FrankfurterClient, exchangeRateRepository : ExchangeRateRepository)
+    +syncRates() : ForexSyncResultDTO
+    -upsert(base : String, quote : String, latest : LatestRate) : ExchangeRateDTO
+  }
+}
+package "client" {
+  class FrankfurterClient <<Component>> {
+    {static} +PROVIDER_NAME : String
+    {static} -TIMEOUT : Duration
+    -restClient : RestClient
+    --
+    +FrankfurterClient(baseUrl : String)
+    +FrankfurterClient(builder : RestClient.Builder, baseUrl : String)
+    {static} -timeoutRequestFactory() : SimpleClientHttpRequestFactory
+    +fetchLatestRate(base : String, quote : String) : LatestRate
+  }
+  class "FrankfurterClient.LatestRate" as FrankfurterClient_LatestRate <<record>> {
+    -rate : BigDecimal
+    -date : LocalDate
+  }
+  class "FrankfurterClient.FrankfurterResponse" as FrankfurterClient_FrankfurterResponse <<record>> {
+    -amount : BigDecimal
+    -base : String
+    -date : LocalDate
+    -rates : Map<String
+    -BigDecimal>
+  }
+}
+package "repository" {
+  interface ExchangeRateRepository <<Repository>> {
+    +findByBaseCurrencyAndQuoteCurrency(baseCurrency : String, quoteCurrency : String) : Optional<ExchangeRate>
+    +existsByBaseCurrencyAndQuoteCurrency(baseCurrency : String, quoteCurrency : String) : boolean
+  }
+}
+package "entity" {
+  class ExchangeRate <<Entity>> {
+    -id : Long
+    -baseCurrency : String
+    -quoteCurrency : String
+    -rate : BigDecimal
+    -updatedAt : LocalDateTime
+    --
+    +ExchangeRate()
+    +ExchangeRate(baseCurrency : String, quoteCurrency : String, rate : BigDecimal)
+    #touch() : void
+    +getId() : Long
+    +setId(id : Long) : void
+    +getBaseCurrency() : String
+    +setBaseCurrency(baseCurrency : String) : void
+    +getQuoteCurrency() : String
+    +setQuoteCurrency(quoteCurrency : String) : void
+    +getRate() : BigDecimal
+    +setRate(rate : BigDecimal) : void
+    +getUpdatedAt() : LocalDateTime
+  }
+  enum SupportedCurrency {
+    PHP
+    USD
+    EUR
+    GBP
+    SGD
+    --
+    {static} +HOME : SupportedCurrency
+    -displayName : String
+    --
+    ~SupportedCurrency(displayName : String)
+    +getDisplayName() : String
+    {static} +isSupported(code : String) : boolean
+    {static} +fromCode(code : String) : SupportedCurrency
+  }
+}
+package "dto" {
+  class ExchangeRateDTO <<DTO>> {
+    -id : Long
+    -baseCurrency : String
+    -quoteCurrency : String
+    -rate : BigDecimal
+    -updatedAt : LocalDateTime
+    --
+    +ExchangeRateDTO()
+    +getId() : Long
+    +setId(id : Long) : void
+    +getBaseCurrency() : String
+    +setBaseCurrency(baseCurrency : String) : void
+    +getQuoteCurrency() : String
+    +setQuoteCurrency(quoteCurrency : String) : void
+    +getRate() : BigDecimal
+    +setRate(rate : BigDecimal) : void
+    +getUpdatedAt() : LocalDateTime
+    +setUpdatedAt(updatedAt : LocalDateTime) : void
+  }
+  class ForexQuoteDTO <<DTO>> {
+    -fromCurrency : String
+    -toCurrency : String
+    -amount : BigDecimal
+    -rate : BigDecimal
+    -convertedAmount : BigDecimal
+    --
+    +ForexQuoteDTO()
+    +ForexQuoteDTO(fromCurrency : String, toCurrency : String, amount : BigDecimal, rate : BigDecimal, convertedAmount : BigDecimal)
+    +getFromCurrency() : String
+    +setFromCurrency(fromCurrency : String) : void
+    +getToCurrency() : String
+    +setToCurrency(toCurrency : String) : void
+    +getAmount() : BigDecimal
+    +setAmount(amount : BigDecimal) : void
+    +getRate() : BigDecimal
+    +setRate(rate : BigDecimal) : void
+    +getConvertedAmount() : BigDecimal
+    +setConvertedAmount(convertedAmount : BigDecimal) : void
+  }
+  class ForexSyncResultDTO <<DTO>> {
+    -provider : String
+    -rateDate : LocalDate
+    -updatedRates : List<ExchangeRateDTO>
+    -failedCurrencies : List<String>
+    --
+    +ForexSyncResultDTO()
+    +ForexSyncResultDTO(provider : String, rateDate : LocalDate, updatedRates : List<ExchangeRateDTO>, failedCurrencies : List<String>)
+    +getProvider() : String
+    +setProvider(provider : String) : void
+    +getRateDate() : LocalDate
+    +setRateDate(rateDate : LocalDate) : void
+    +getUpdatedRates() : List<ExchangeRateDTO>
+    +setUpdatedRates(updatedRates : List<ExchangeRateDTO>) : void
+    +getFailedCurrencies() : List<String>
+    +setFailedCurrencies(failedCurrencies : List<String>) : void
+  }
+}
+package "exception" {
+  class ForexProviderUnavailableException <<Exception>> {
+    +ForexProviderUnavailableException(message : String)
+  }
+}
+package "framework (external)" #f4f5f7 {
+  interface "JpaRepository<T, ID>" as JpaRepository <<Spring Data>>
+  class "RuntimeException" as RuntimeException <<Java>>
+}
+FrankfurterClient +-- FrankfurterClient_LatestRate
+FrankfurterClient +-- FrankfurterClient_FrankfurterResponse
+ForexRateSyncScheduler --> ForexRateSyncService
+ForexController --> ExchangeRateService
+ForexController --> ForexRateSyncService
+ForexProviderUnavailableException --|> RuntimeException
+ExchangeRateRepository --|> JpaRepository
+ExchangeRateRepository ..> ExchangeRate : <<manages>>
+ExchangeRateService --> ExchangeRateRepository
+ForexRateSyncService --> FrankfurterClient
+ForexRateSyncService --> ExchangeRateRepository
+@enduml

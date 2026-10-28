@@ -1,0 +1,266 @@
+@startuml
+!pragma layout smetana
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam classFontStyle bold
+skinparam packageStyle rectangle
+skinparam ArrowColor #44546a
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #44546a
+  HeaderBackgroundColor #e8eef7
+}
+skinparam stereotypeCBackgroundColor #c9daf8
+skinparam package {
+  BorderColor #9aa5b4
+  FontColor #2a3442
+}
+hide empty members
+
+title GMoney - Customers and wallets
+
+package "controller" {
+  class AccountController <<RestController>> {
+    -accountService : AccountService
+    --
+    +AccountController(accountService : AccountService)
+    +createAccount(newAccount : AccountDTO) : ResponseEntity<ApiResponse<AccountDTO>>
+    +getAllAccounts("" : (value =, status : required = false) String) : ResponseEntity<ApiResponse<List<AccountDTO>>>
+    +getMyAccounts(authentication : Authentication) : ResponseEntity<ApiResponse<List<AccountDTO>>>
+    +getAccountById(id : Long) : ResponseEntity<ApiResponse<AccountDTO>>
+    +updatedAccount(id : Long, updatedAccount : BalanceUpdateDTO) : ResponseEntity<ApiResponse<AccountDTO>>
+    +closeAccount(id : Long) : ResponseEntity<ApiResponse<Void>>
+    +getAccountsPaginated(page : int, size : int) : ResponseEntity<ApiResponse<Page<AccountDTO>>>
+  }
+  class CustomerController <<RestController>> {
+    -customerService : CustomerService
+    --
+    +CustomerController(customerService : CustomerService)
+    +getCurrentCustomer(authentication : Authentication) : ResponseEntity<ApiResponse<CustomerDTO>>
+    +createCustomer(customerDTO : CustomerDTO) : ResponseEntity<ApiResponse<CustomerDTO>>
+    +getAllCustomers() : ResponseEntity<ApiResponse<List<CustomerDTO>>>
+    +getCustomerById(id : Long) : ResponseEntity<ApiResponse<CustomerDTO>>
+    +updateCustomer(id : Long, dto : CustomerDTO) : ResponseEntity<ApiResponse<CustomerDTO>>
+    +deleteCustomer(id : Long) : ResponseEntity<ApiResponse<Void>>
+  }
+}
+package "service" {
+  class AccountService <<Service>> {
+    -accountRepository : AccountRepository
+    -customerRepository : CustomerRepository
+    -transferRecordRepository : TransferRecordRepository
+    --
+    +AccountService(accountRepository : AccountRepository, customerRepository : CustomerRepository, transferRecordRepository : TransferRecordRepository)
+    +createAccount(dto : AccountDTO) : AccountDTO
+    +getAllAccounts() : List<AccountDTO>
+    +getMyAccounts(username : String) : List<AccountDTO>
+    +getAccountById(id : Long) : AccountDTO
+    +getAccountByStatus(status : String) : List<AccountDTO>
+    +closeAccount(id : Long) : boolean
+    +updateAccountBalance(id : Long, updatedAccount : AccountDTO) : AccountDTO
+    +getPaginatedAccounts(page : int, size : int) : Page<AccountDTO>
+    -convertToDTO(entity : Account) : AccountDTO
+  }
+  class CustomerService <<Service>> {
+    -customerRepository : CustomerRepository
+    -userRepository : UserRepository
+    -accountRepository : AccountRepository
+    --
+    +CustomerService(customerRepository : CustomerRepository, userRepository : UserRepository, accountRepository : AccountRepository)
+    +getCurrentCustomer(username : String) : CustomerDTO
+    +createCustomer(dto : CustomerDTO) : CustomerDTO
+    +getAllCustomers() : List<CustomerDTO>
+    +getCustomerById(id : Long) : CustomerDTO
+    +updateCustomer(id : Long, dto : CustomerDTO) : CustomerDTO
+    +deleteCustomer(id : Long) : void
+    -convertToDTO(customer : Customer) : CustomerDTO
+  }
+}
+package "security" {
+  class AccountSecurity <<Component>> {
+    -userRepository : UserRepository
+    --
+    +AccountSecurity(userRepository : UserRepository)
+    +isOwnCustomer(customerId : Long, username : String) : boolean
+  }
+}
+package "repository" {
+  interface AccountRepository <<Repository>> {
+    +findByStatus(status : String) : List<Account>
+    +findByCustomer_User_Username(username : String) : List<Account>
+    +existsByCustomer_IdAndCurrency(customerId : Long, currency : String) : boolean
+    +existsByCustomer_Id(customerId : Long) : boolean
+  }
+  interface CustomerRepository <<Repository>> {
+    +findByFullNameContaining(keyword : String) : List<Customer>
+  }
+  interface TransferRecordRepository <<Repository>> {
+    +findBySourceAccountIdOrDestinationAccountId(sourceAccountId : Long, destinationAccountId : Long) : List<TransferRecord>
+  }
+  interface UserRepository <<Repository>> {
+    +findByUsername(username : String) : Optional<User>
+  }
+}
+package "entity" {
+  class Account <<Entity>> {
+    -id : Long
+    -version : long
+    -accountType : String
+    -balance : BigDecimal
+    -status : String
+    -currency : String
+    -customer : Customer
+    -createdAt : LocalDateTime
+    -updateAt : LocalDateTime
+    --
+    +Account()
+    #onCreate() : void
+    #onUpdate() : void
+    +getId() : Long
+    +setId(id : Long) : void
+    +getAccountType() : String
+    +setAccountType(accountType : String) : void
+    +getBalance() : BigDecimal
+    +setBalance(balance : BigDecimal) : void
+    +getStatus() : String
+    +setStatus(status : String) : void
+    +getCurrency() : String
+    +setCurrency(currency : String) : void
+    +getCustomer() : Customer
+    +setCustomer(customer : Customer) : void
+    +getCreatedAt() : LocalDateTime
+    +getUpdateAt() : LocalDateTime
+  }
+  class Customer <<Entity>> {
+    -id : Long
+    -fullName : String
+    -email : String
+    -phone : String
+    -user : User
+    --
+    +Customer()
+    +getId() : Long
+    +setId(id : Long) : void
+    +getFullName() : String
+    +setFullName(fullName : String) : void
+    +getEmail() : String
+    +setEmail(email : String) : void
+    +getPhone() : String
+    +setPhone(phone : String) : void
+    +getUser() : User
+    +setUser(user : User) : void
+  }
+  class User <<Entity>> {
+    -id : Long
+    -username : String
+    -password : String
+    -role : String
+    -customer : Customer
+    --
+    +User()
+    +getAuthorities() : Collection<? extends GrantedAuthority>
+    +getPassword() : String
+    +getUsername() : String
+    +isAccountNonExpired() : boolean
+    +isAccountNonLocked() : boolean
+    +isCredentialsNonExpired() : boolean
+    +isEnabled() : boolean
+    +getId() : Long
+    +setId(id : Long) : void
+    +setUsername(username : String) : void
+    +setPassword(password : String) : void
+    +getRole() : String
+    +setRole(role : String) : void
+    +getCustomer() : Customer
+    +setCustomer(customer : Customer) : void
+  }
+}
+package "dto" {
+  class AccountDTO <<DTO>> {
+    -id : Long
+    -customerId : Long
+    -customerName : String
+    -balance : BigDecimal
+    -status : String
+    -accountType : String
+    -currency : String
+    -username : String
+    --
+    +AccountDTO()
+    +getId() : Long
+    +setId(id : Long) : void
+    +getCustomerId() : Long
+    +setCustomerId(customerId : Long) : void
+    +getCustomerName() : String
+    +setCustomerName(customerName : String) : void
+    +getBalance() : BigDecimal
+    +setBalance(balance : BigDecimal) : void
+    +getStatus() : String
+    +setStatus(status : String) : void
+    +getAccountType() : String
+    +setAccountType(accountType : String) : void
+    +getCurrency() : String
+    +setCurrency(currency : String) : void
+    +getUsername() : String
+    +setUsername(username : String) : void
+  }
+  class BalanceUpdateDTO <<DTO>> {
+    -balance : BigDecimal
+    --
+    +getBalance() : BigDecimal
+    +setBalance(balance : BigDecimal) : void
+  }
+  class CustomerDTO <<DTO>> {
+    -id : Long
+    -fullName : String
+    -email : String
+    -phone : String
+    -username : String
+    --
+    +CustomerDTO()
+    +CustomerDTO(id : Long, fullName : String, email : String, phone : String, username : String)
+    +CustomerDTO(id : Long, fullName : String)
+    +getId() : Long
+    +setId(id : Long) : void
+    +getFullName() : String
+    +setFullName(fullName : String) : void
+    +getEmail() : String
+    +setEmail(email : String) : void
+    +getPhone() : String
+    +setPhone(phone : String) : void
+    +getUsername() : String
+    +setUsername(username : String) : void
+  }
+}
+package "exception" {
+  class DuplicateWalletException <<Exception>> {
+    +DuplicateWalletException(message : String)
+  }
+}
+package "framework (external)" #f4f5f7 {
+  interface "JpaRepository<T, ID>" as JpaRepository <<Spring Data>>
+  class "RuntimeException" as RuntimeException <<Java>>
+  interface "UserDetails" as UserDetails <<Spring Security>>
+}
+AccountController --> AccountService
+CustomerController --> CustomerService
+Account "0..*" --> "1" Customer : customer
+User ..|> UserDetails
+User "0..1" -- "1" Customer : customer >
+DuplicateWalletException --|> RuntimeException
+AccountRepository --|> JpaRepository
+AccountRepository ..> Account : <<manages>>
+CustomerRepository --|> JpaRepository
+CustomerRepository ..> Customer : <<manages>>
+TransferRecordRepository --|> JpaRepository
+UserRepository --|> JpaRepository
+UserRepository ..> User : <<manages>>
+AccountSecurity --> UserRepository
+AccountService --> AccountRepository
+AccountService --> CustomerRepository
+AccountService --> TransferRecordRepository
+CustomerService --> CustomerRepository
+CustomerService --> UserRepository
+CustomerService --> AccountRepository
+@enduml

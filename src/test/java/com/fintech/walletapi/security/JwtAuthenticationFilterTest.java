@@ -17,6 +17,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for {@link JwtAuthenticationFilter}.
+ */
 @ExtendWith(MockitoExtension.class)
 class JwtAuthenticationFilterTest {
 
@@ -32,11 +35,25 @@ class JwtAuthenticationFilterTest {
     @InjectMocks
     private JwtAuthenticationFilter filter;
 
+    /**
+     * Clears the security context after each test.
+     *
+     * <p><b>Pre-condition:</b> A test has finished.</p>
+     * <p><b>Post-condition:</b> No authentication leaks into the next test.</p>
+     */
     @AfterEach
     void clearContext() {
         SecurityContextHolder.clearContext();
     }
 
+    /**
+     * TC-JWTF-01: tests {@code JwtAuthenticationFilter.doFilterInternal}.
+     *
+     * <p><b>Pre-condition:</b> No Authorization header.</p>
+     * <p><b>Post-condition:</b> Chain continues, nobody authenticated.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-JWTF-01 | JwtAuthenticationFilter.doFilterInternal | no Authorization header -> chain continues, nobody authenticated")
     void noHeader() throws Exception {
@@ -50,6 +67,14 @@ class JwtAuthenticationFilterTest {
         verifyNoInteractions(jwtUtil);
     }
 
+    /**
+     * TC-JWTF-02: tests {@code JwtAuthenticationFilter.doFilterInternal}.
+     *
+     * <p><b>Pre-condition:</b> Valid Bearer token.</p>
+     * <p><b>Post-condition:</b> User authenticated with roles.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-JWTF-02 | JwtAuthenticationFilter.doFilterInternal | valid Bearer token -> user authenticated with roles")
     void validToken() throws Exception {
@@ -68,6 +93,14 @@ class JwtAuthenticationFilterTest {
         verify(filterChain).doFilter(request, response);
     }
 
+    /**
+     * TC-JWTF-03: tests {@code JwtAuthenticationFilter.doFilterInternal}.
+     *
+     * <p><b>Pre-condition:</b> Malformed token.</p>
+     * <p><b>Post-condition:</b> Context cleared, chain continues.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-JWTF-03 | JwtAuthenticationFilter.doFilterInternal | malformed token -> context cleared, chain continues")
     void invalidToken() throws Exception {
@@ -82,6 +115,14 @@ class JwtAuthenticationFilterTest {
         verify(filterChain).doFilter(request, response);
     }
 
+    /**
+     * TC-JWTF-04: tests {@code JwtAuthenticationFilter.doFilterInternal}.
+     *
+     * <p><b>Pre-condition:</b> 'Basic' scheme instead of Bearer.</p>
+     * <p><b>Post-condition:</b> Ignored.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-JWTF-04 | JwtAuthenticationFilter.doFilterInternal | 'Basic' scheme instead of Bearer -> ignored")
     void nonBearerHeader() throws Exception {

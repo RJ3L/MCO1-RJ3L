@@ -23,6 +23,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Week 6 full-stack integration test: Controller -> Service (with @PostAuthorize)
+ * -> Repository -> H2. Every test is rolled back.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
 @Transactional
@@ -37,6 +41,14 @@ public class AccountIntegrationTest {
     @Autowired
     private CustomerRepository customerRepository;
 
+    /**
+     * TC-ACCINT-01: tests {@code AccountController.getAccountById (end to end)}.
+     *
+     * <p><b>Pre-condition:</b> Admin reads a saved account.</p>
+     * <p><b>Post-condition:</b> 200 with DB values.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-ACCINT-01 | AccountController.getAccountById (end to end) | admin reads a saved account -> 200 with DB values")
@@ -53,6 +65,14 @@ public class AccountIntegrationTest {
                 .andExpect(jsonPath("$.data.currency").value("PHP"));
     }
 
+    /**
+     * TC-ACCINT-02: tests {@code AccountController.getAccountById (end to end)}.
+     *
+     * <p><b>Pre-condition:</b> Customer reads an account she does not own.</p>
+     * <p><b>Post-condition:</b> 403.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @WithMockUser(username = "alice", roles = "CUSTOMER")
     @DisplayName("TC-ACCINT-02 | AccountController.getAccountById (end to end) | customer reads an account she does not own -> 403")
@@ -66,6 +86,14 @@ public class AccountIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+    /**
+     * TC-ACCINT-03: tests {@code AccountController.getAccountById (end to end)}.
+     *
+     * <p><b>Pre-condition:</b> Admin reads a missing id.</p>
+     * <p><b>Post-condition:</b> 404.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-ACCINT-03 | AccountController.getAccountById (end to end) | admin reads a missing id -> 404")
@@ -74,6 +102,14 @@ public class AccountIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    /**
+     * Saves a customer profile without a login.
+     *
+     * <p><b>Pre-condition:</b> The H2 database is available inside the test transaction.</p>
+     * <p><b>Post-condition:</b> A new customer row exists (rolled back after the test).</p>
+     *
+     * @return the new customer's id
+     */
     private Long newCustomerId() {
         Customer customer = new Customer();
         customer.setFullName("Wallet Rule Tester");
@@ -81,11 +117,29 @@ public class AccountIntegrationTest {
         return customerRepository.save(customer).getId();
     }
 
+    /**
+     * Builds a wallet-creation body with a zero balance.
+     *
+     * <p><b>Pre-condition:</b> None.</p>
+     * <p><b>Post-condition:</b> No state is changed.</p>
+     *
+     * @param customerId owner's customer id
+     * @param currency currency code, sent as given
+     * @return the request body
+     */
     private static String walletJson(Long customerId, String currency) {
         return "{\"customerId\":" + customerId + ",\"accountType\":\"SAVINGS\",\"balance\":0,"
                 + "\"status\":\"ACTIVE\",\"currency\":\"" + currency + "\"}";
     }
 
+    /**
+     * TC-ACCINT-04: tests {@code AccountController.createAccount (end to end)}.
+     *
+     * <p><b>Pre-condition:</b> Second USD wallet for one customer.</p>
+     * <p><b>Post-condition:</b> 201 then 409, one row kept.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-ACCINT-04 | AccountController.createAccount (end to end) | second USD wallet for one customer -> 201 then 409, one row kept")
@@ -103,6 +157,14 @@ public class AccountIntegrationTest {
                 .filter(a -> a.getCustomer() != null && a.getCustomer().getId().equals(customerId)).count());
     }
 
+    /**
+     * TC-ACCINT-05: tests {@code AccountController.createAccount (end to end)}.
+     *
+     * <p><b>Pre-condition:</b> One customer opens PHP, USD and EUR wallets.</p>
+     * <p><b>Post-condition:</b> All 201.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @WithMockUser(roles = "ADMIN")
     @DisplayName("TC-ACCINT-05 | AccountController.createAccount (end to end) | one customer opens PHP, USD and EUR wallets -> all 201")

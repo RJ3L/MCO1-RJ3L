@@ -7,6 +7,14 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * OpenAPI 3 description of the GMoney API, served by springdoc at
+ * {@code /v3/api-docs} and rendered by Swagger UI at {@code /swagger-ui.html}.
+ *
+ * <p>Every operation requires the {@value #BEARER_AUTH} scheme by default. In Swagger UI,
+ * call {@code POST /api/v1/auth/login}, copy the token from {@code data}, click
+ * <b>Authorize</b> and paste it (without the {@code Bearer } prefix).</p>
+ */
 @Configuration
 @OpenAPIDefinition(
         info = @Info(
@@ -23,5 +31,6 @@ import org.springframework.context.annotation.Configuration;
         description = "JWT returned by POST /api/v1/auth/login (valid for 1 hour)")
 public class OpenApiConfig {
 
+    /** Name of the JWT security scheme in the OpenAPI document. */
     public static final String BEARER_AUTH = "bearerAuth";
 }

@@ -29,6 +29,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Controller slice tests for {@link TransferController}: HTTP status, JSON shape,
+ * validation and error mapping. The service is mocked; no database is used.
+ */
 @WebMvcTest(TransferController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class TransferControllerTest {
@@ -47,10 +51,29 @@ class TransferControllerTest {
     @MockitoBean
     private JwtUtil jwtUtil;
 
+    /**
+     * Builds a transfer request body; values are inserted raw so tests can send invalid ones.
+     *
+     * <p><b>Pre-condition:</b> None.</p>
+     * <p><b>Post-condition:</b> No state is changed.</p>
+     *
+     * @param fromId source id as JSON text
+     * @param toId destination id as JSON text
+     * @param amount amount as JSON text
+     * @return the request body
+     */
     private static String body(String fromId, String toId, String amount) {
         return "{\"fromId\":" + fromId + ",\"toId\":" + toId + ",\"amount\":" + amount + "}";
     }
 
+    /**
+     * TC-TRFCTL-01: tests {@code TransferController.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Valid body + JWT user.</p>
+     * <p><b>Post-condition:</b> 200 'Transfer successful', username from token.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-TRFCTL-01 | TransferController.transferMoney | valid body + JWT user -> 200 'Transfer successful', username from token")
     void transfer_success() throws Exception {
@@ -65,6 +88,14 @@ class TransferControllerTest {
                 .andExpect(jsonPath("$.data").value("Successfully transferred 100.00 from Account #3 to Account #4"));
     }
 
+    /**
+     * TC-TRFCTL-02: tests {@code TransferController.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Missing fromId.</p>
+     * <p><b>Post-condition:</b> 400 'Source account ID is required'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-TRFCTL-02 | TransferController.transferMoney | missing fromId -> 400 'Source account ID is required'")
     void transfer_missingFromId() throws Exception {
@@ -75,6 +106,14 @@ class TransferControllerTest {
         verifyNoInteractions(transferService);
     }
 
+    /**
+     * TC-TRFCTL-03: tests {@code TransferController.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Amount 0.</p>
+     * <p><b>Post-condition:</b> 400 'Transfer amount must be greater than zero'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-TRFCTL-03 | TransferController.transferMoney | amount 0 -> 400 'Transfer amount must be greater than zero'")
     void transfer_zeroAmount() throws Exception {
@@ -84,6 +123,14 @@ class TransferControllerTest {
                 .andExpect(jsonPath("$.message").value("Transfer amount must be greater than zero"));
     }
 
+    /**
+     * TC-TRFCTL-04: tests {@code TransferController.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Missing toId.</p>
+     * <p><b>Post-condition:</b> 400 'Destination account ID is required'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-TRFCTL-04 | TransferController.transferMoney | missing toId -> 400 'Destination account ID is required'")
     void transfer_missingToId() throws Exception {
@@ -93,6 +140,14 @@ class TransferControllerTest {
                 .andExpect(jsonPath("$.message").value("Destination account ID is required"));
     }
 
+    /**
+     * TC-TRFCTL-05: tests {@code TransferController.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Destination 999 missing.</p>
+     * <p><b>Post-condition:</b> 404 'Destination account not found'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-TRFCTL-05 | TransferController.transferMoney | destination 999 missing -> 404 'Destination account not found'")
     void transfer_destinationMissing() throws Exception {
@@ -105,6 +160,14 @@ class TransferControllerTest {
                 .andExpect(jsonPath("$.message").value("Destination account not found"));
     }
 
+    /**
+     * TC-TRFCTL-06: tests {@code TransferController.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Sender is not the owner.</p>
+     * <p><b>Post-condition:</b> 403.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-TRFCTL-06 | TransferController.transferMoney | sender is not the owner -> 403")
     void transfer_notOwner() throws Exception {
@@ -116,6 +179,14 @@ class TransferControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    /**
+     * TC-TRFCTL-07: tests {@code TransferController.transferMoney}.
+     *
+     * <p><b>Pre-condition:</b> Nobody logged in.</p>
+     * <p><b>Post-condition:</b> 401, service never called.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-TRFCTL-07 | TransferController.transferMoney | nobody logged in -> 401, service never called")
     void transfer_noUser() throws Exception {
@@ -125,6 +196,14 @@ class TransferControllerTest {
         verifyNoInteractions(transferService);
     }
 
+    /**
+     * TC-TRFCTL-08: tests {@code TransferController.getTransferHistory}.
+     *
+     * <p><b>Pre-condition:</b> Owner.</p>
+     * <p><b>Post-condition:</b> 200 with list of TransferRecordDTO.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-TRFCTL-08 | TransferController.getTransferHistory | owner -> 200 with list of TransferRecordDTO")
     void history_success() throws Exception {
@@ -144,6 +223,14 @@ class TransferControllerTest {
                 .andExpect(jsonPath("$.data[0].direction").value("SENT"));
     }
 
+    /**
+     * TC-TRFCTL-09: tests {@code TransferController.getTransferHistory}.
+     *
+     * <p><b>Pre-condition:</b> Not the owner.</p>
+     * <p><b>Post-condition:</b> 403.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-TRFCTL-09 | TransferController.getTransferHistory | not the owner -> 403")
     void history_forbidden() throws Exception {
@@ -152,6 +239,14 @@ class TransferControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    /**
+     * TC-TRFCTL-10: tests {@code TransferController.getTransferHistory}.
+     *
+     * <p><b>Pre-condition:</b> Unknown account.</p>
+     * <p><b>Post-condition:</b> 404 'Account not found'.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-TRFCTL-10 | TransferController.getTransferHistory | unknown account -> 404 'Account not found'")
     void history_missing() throws Exception {
@@ -161,6 +256,14 @@ class TransferControllerTest {
                 .andExpect(jsonPath("$.message").value("Account not found"));
     }
 
+    /**
+     * TC-TRFCTL-11: tests {@code TransferController.getTransferHistory}.
+     *
+     * <p><b>Pre-condition:</b> Non-numeric id 'abc'.</p>
+     * <p><b>Post-condition:</b> 400.</p>
+     *
+     * @throws Exception propagated from the code under test; any exception fails this test
+     */
     @Test
     @DisplayName("TC-TRFCTL-11 | TransferController.getTransferHistory | non-numeric id 'abc' -> 400")
     void history_badId() throws Exception {

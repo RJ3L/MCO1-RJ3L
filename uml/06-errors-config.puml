@@ -1,0 +1,123 @@
+@startuml
+!pragma layout smetana
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam classFontStyle bold
+skinparam packageStyle rectangle
+skinparam ArrowColor #44546a
+skinparam class {
+  BackgroundColor #ffffff
+  BorderColor #44546a
+  HeaderBackgroundColor #e8eef7
+}
+skinparam stereotypeCBackgroundColor #c9daf8
+skinparam package {
+  BorderColor #9aa5b4
+  FontColor #2a3442
+}
+hide empty members
+
+title GMoney - Errors, responses and configuration
+
+package "com.fintech.walletapi" {
+  class GMoneyApplication <<SpringBootApplication>> {
+    {static} +main(args : String[]) : void
+  }
+}
+package "config" {
+  class DataSeeder <<Component>> {
+    {static} -log : Logger
+    {static} ~DEFAULT_RATES : List<ExchangeRate>
+    -userRepository : UserRepository
+    -exchangeRateRepository : ExchangeRateRepository
+    -passwordEncoder : PasswordEncoder
+    -adminUsername : String
+    -adminPassword : String
+    --
+    +DataSeeder(userRepository : UserRepository, exchangeRateRepository : ExchangeRateRepository, passwordEncoder : PasswordEncoder, adminUsername : String, adminPassword : String)
+    +run(args : String...) : void
+  }
+  class ForexRateSyncScheduler <<Configuration>> {
+    {static} -log : Logger
+    -forexRateSyncService : ForexRateSyncService
+    --
+    +ForexRateSyncScheduler(forexRateSyncService : ForexRateSyncService)
+    +syncOnStartup() : void
+    +syncOnSchedule() : void
+    -syncQuietly() : void
+  }
+  class OpenApiConfig <<Configuration>> {
+    {static} +BEARER_AUTH : String
+    --
+  }
+}
+package "dto" {
+  class ApiResponse <<DTO>> {
+    -timestamp : LocalDateTime
+    -status : int
+    -message : String
+    -data : T
+    --
+    +ApiResponse()
+    +ApiResponse(status : int, message : String, data : T)
+    +ApiResponse(status : int, message : String)
+    +getTimestamp() : LocalDateTime
+    +setTimestamp(timestamp : LocalDateTime) : void
+    +getStatus() : int
+    +setStatus(status : int) : void
+    +getMessage() : String
+    +setMessage(message : String) : void
+    +getData() : T
+    +setData(data : T) : void
+  }
+}
+package "exception" {
+  class DuplicateWalletException <<Exception>> {
+    +DuplicateWalletException(message : String)
+  }
+  class ErrorResponseDTO {
+    -timestamp : LocalDateTime
+    -status : int
+    -errorType : String
+    -message : String
+    --
+    +ErrorResponseDTO(status : int, errorType : String, message : String)
+    +getTimestamp() : LocalDateTime
+    +setTimestamp(timestamp : LocalDateTime) : void
+    +getStatus() : int
+    +setStatus(status : int) : void
+    +getErrorType() : String
+    +setErrorType(errorType : String) : void
+    +getMessage() : String
+    +setMessage(message : String) : void
+  }
+  class ForexProviderUnavailableException <<Exception>> {
+    +ForexProviderUnavailableException(message : String)
+  }
+  class GlobalExceptionHandler <<ControllerAdvice>> {
+    +handleValidationErrors(ex : MethodArgumentNotValidException) : ResponseEntity<ErrorResponseDTO>
+    +handleNotFound(ex : IllegalArgumentException) : ResponseEntity<ErrorResponseDTO>
+    +handleInvalidTransaction(ex : InvalidTransactionException) : ResponseEntity<ErrorResponseDTO>
+    +handleDuplicateWallet(ex : DuplicateWalletException) : ResponseEntity<ErrorResponseDTO>
+    +handleDataIntegrityViolation(ex : DataIntegrityViolationException) : ResponseEntity<ErrorResponseDTO>
+    +handleProviderUnavailable(ex : ForexProviderUnavailableException) : ResponseEntity<ErrorResponseDTO>
+    +handleBadCredentials(ex : BadCredentialsException) : ResponseEntity<ErrorResponseDTO>
+    +handleAccessDenied(ex : AccessDeniedException) : ResponseEntity<ErrorResponseDTO>
+    +handleBadRequest(ex : Exception) : ResponseEntity<ErrorResponseDTO>
+    +handleConcurrentUpdate(ex : OptimisticLockingFailureException) : ResponseEntity<ErrorResponseDTO>
+    +handleEverythingElse(ex : Exception) : ResponseEntity<ErrorResponseDTO>
+  }
+  class InvalidTransactionException <<Exception>> {
+    +InvalidTransactionException(message : String)
+  }
+}
+package "framework (external)" #f4f5f7 {
+  interface "CommandLineRunner" as CommandLineRunner <<Spring Boot>>
+  class "RuntimeException" as RuntimeException <<Java>>
+}
+DataSeeder ..|> CommandLineRunner
+DuplicateWalletException --|> RuntimeException
+ForexProviderUnavailableException --|> RuntimeException
+InvalidTransactionException --|> RuntimeException
+@enduml
