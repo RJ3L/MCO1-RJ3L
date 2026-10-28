@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.fintech.walletapi.dto.AccessorAndConstructorTest
+-------------------------------------------------------------------------------
+Tests run: 259, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.258 s -- in com.fintech.walletapi.dto.AccessorAndConstructorTest
